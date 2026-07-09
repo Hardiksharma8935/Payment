@@ -26,14 +26,14 @@ GROUPS = {
     "g2": {
         "name": "teen Students ", 
         "price": 199, 
-        "chat_id": "-1000987654321", 
-        "demo": "🎬 Movies Demo\n4K Quality Movies directly in Telegram."
+        "chat_id": "-1004458938934", 
+        "demo": "No demo "
     }
 }
 
 # Payment Details
-UPI_ID = "your_upi_id@ybl"
-USDT_ADDRESS = "Txxxxxxxxxxxxxxxxxxxxxx"
+UPI_ID = "Hardiksharma8935@fam"
+USDT_ADDRESS = "updating ."
 
 # ==========================================
 # 🗂 STATES FOR PAYMENT

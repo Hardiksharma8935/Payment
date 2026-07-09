@@ -140,6 +140,14 @@ GROUPS = {
         "stars": 133, 
         "chat_id": "-1004320995574", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADUAwAAmjCgUbyd4xysXvrtxYE"
+    },
+    "g16": {
+        "name": " All In One ", 
+        "price": 499, 
+        "usd_price": 5, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 633, 
+        "chat_id": "-1003599861740", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADmA0AAmjCgUYg1UY_ofR7vxYE"
     }
 
 }

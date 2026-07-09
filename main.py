@@ -24,23 +24,45 @@ dp = Dispatcher()
 # Aapne hisaab se "stars" ki value set kar lein.
 GROUPS = {
     "g1": {
-        "name": "VIP Trading Calls", 
-        "price": 199, 
+        "name": "Stripchat", 
+        "price": 199inr/3$ , 
         "stars": 133, # ₹199 / 1.5 = ~133 Stars
-        "chat_id": "-1001234567890", 
-        "demo": "📈 VIP Trading Demo\nHere you get daily 3-5 sure shot signals."
+        "chat_id": "-1004445000742", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADyh4AAmjCeUaIxOc4OANLJxYE"
     },
     "g2": {
-        "name": "Premium Movies", 
-        "price": 499, 
-        "stars": 330, 
-        "chat_id": "-1000987654321", 
-        "demo": "🎬 Movies Demo\n4K Quality Movies directly in Telegram."
-    }
+        "name": "Indian Students", 
+        "price": 199inr/3$, 
+        "stars": 133, 
+        "chat_id": "-1004458938934", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADiR4AAmjCeUastMuPKJmT_hYE"
+    },
+    "g3": {
+        "name": "Pure Tamil", 
+        "price": 199/3$, 
+        "stars": 133, # ₹199 / 1.5 = ~133 Stars
+        "chat_id": "-1003893753935", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADix4AAmjCeUaiYnw8VfpWHxYE"
+    },
+    "g4": {
+        "name": "Forced", 
+        "price": 199/3$, 
+        "stars": 133, # ₹199 / 1.5 = ~133 Stars
+        "chat_id": "-1003978784189", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjB4AAmjCeUZFY7dmTyGcVBYE"
+    },
+    "g5": {
+        "name": "self made ", 
+        "price": 199/3$, 
+        "stars": 133, # ₹199 / 1.5 = ~133 Stars
+        "chat_id": "-1003589926855", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjh4AAmjCeUY17uH7NGywPhYE"
+    },
+    
 }
 
 UPI_ID = "Hardiksharma8935@fam"
-USDT_ADDRESS = "0xYourBscAddressHere..." # Apna BEP20 address daalein
+USDT_ADDRESS BEP20 = "0xba924a45fe0d1a4172d3230c767c7096d9854f97" # Apna BEP20 address daalein
 
 # ==========================================
 # 🗂 STATES

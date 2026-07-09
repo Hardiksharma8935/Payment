@@ -62,7 +62,7 @@ GROUPS = {
 }
 
 UPI_ID = "Hardiksharma8935@fam"
-USDT_ADDRESS BEP20 = "0xba924a45fe0d1a4172d3230c767c7096d9854f97" # Apna BEP20 address daalein
+USDT_ADDRESS = "0xba924a45fe0d1a4172d3230c767c7096d9854f97" # Apna BEP20 address daalein
 
 # ==========================================
 # 🗂 STATES

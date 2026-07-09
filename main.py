@@ -60,7 +60,7 @@ GROUPS = {
         "stars": 133, 
         "chat_id": "-1003589926855", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjh4AAmjCeUY17uH7NGywPhYE"
-    }
+    },
 "g6": {
         "name": "hidden secret", 
         "price": 199, 

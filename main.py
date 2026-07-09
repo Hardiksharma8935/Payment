@@ -300,10 +300,10 @@ async def process_usdt(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("method_amazon_"))
 async def process_amazon(callback: CallbackQuery, state: FSMContext):
     g_id = callback.data.split("_")[2]
-    usd_price = GROUPS[g_id]['usd_price']
+    price = GROUPS[g_id]['price']
     await state.update_data(g_id=g_id)
     await state.set_state(PaymentState.waiting_for_amazon_card)
-    await callback.message.answer(f"🎁 **Amazon Gift Card**\n\nPlease send your **${usd_price}** Amazon Gift Card Code or a Photo of the card in this chat now.", parse_mode="Markdown")
+    await callback.message.answer(f"🎁 **Amazon Gift Card**\n\nPlease send your **${price}** Amazon Gift Card Code or a Photo of the card in this chat now.", parse_mode="Markdown")
     await callback.answer()
 
 # --- 4. TELEGRAM STARS METHOD (Auto Approve) ---

@@ -22,7 +22,7 @@ dp = Dispatcher()
 # ==========================================
 GROUPS = {
     "g1": {
-        "name": "Shat", 
+        "name": "Stripchat", 
         "price": 199, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
@@ -30,7 +30,7 @@ GROUPS = {
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADyh4AAmjCeUaIxOc4OANLJxYE"
     },
     "g2": {
-        "name": "Ian Students", 
+        "name": "Indian Students", 
         "price": 199,
         "usd_price": 3,
         "stars": 133, 
@@ -38,7 +38,7 @@ GROUPS = {
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADiR4AAmjCeUastMuPKJmT_hYE"
     },
     "g3": {
-        "name": "Pure l", 
+        "name": "Pure tamil", 
         "price": 199,
         "usd_price": 3,
         "stars": 133, 
@@ -46,7 +46,7 @@ GROUPS = {
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADix4AAmjCeUaiYnw8VfpWHxYE"
     },
     "g4": {
-        "name": "Frced", 
+        "name": "Forced", 
         "price": 199, 
         "usd_price": 3,
         "stars": 133, 
@@ -61,13 +61,97 @@ GROUPS = {
         "chat_id": "-1003589926855", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjh4AAmjCeUY17uH7NGywPhYE"
     }
+"g6": {
+        "name": "hidden secret", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1004407356883", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADlB4AAmjCeUYrdi34PirAWhYE"
+    },
+"g7": {
+        "name": "bad parents", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1003969174282", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADlR4AAmjCeUZGaDMBp5MGoBYE"
+    },
+"g8": {
+        "name": "fingerings", 
+        "price": 99, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1004435164752", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADmh4AAmjCeUb7rxcaimfZWxYE"
+    },
+"g9": {
+        "name": "dickflash", 
+        "price": 99, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1003870700155", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADoB4AAmjCeUZIwdgTLPeNlxYE"
+    },
+"g10": {
+        "name": "car videos", 
+        "price": 99, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1004351633034", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADox4AAmjCeUbkZylaMcGdpBYE"
+    },
+"g11": {
+        "name": "ip cam cctv", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1003739836678", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADpR4AAmjCeUbG-D-ej2NRmRYE"
+    },
+"g12": {
+        "name": "only fans", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1003960924467", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADqR4AAmjCeUYp7NSXggaRfBYE"
+    },
+"g13": {
+        "name": "Indian Teen ", 
+        "price": 299, 
+        "usd_price": 5, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 233, 
+        "chat_id": "-1003724534912", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADqh4AAmjCeUaem-bfAQORlhYE"
+    },
+"g14": {
+        "name": "Arbic Stuffs", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1004409206399", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADrR4AAmjCeUZrD1n7ZSUqFxYE"
+    },
+"g15": {
+        "name": " mallu", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1004320995574", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADUAwAAmjCgUbyd4xysXvrtxYE"
+    }
+
 }
+
 
 UPI_ID = "Hardiksharma8935@fam"
 USDT_ADDRESS = "0xba924a45fe0d1a4172d3230c767c7096d9854f97" # Apna BEP20 address daalein
 
 # ==========================================
-# 🗂 STATES
+# 🗂 S
+T
+ATES
 # ==========================================
 class PaymentState(StatesGroup):
     waiting_for_screenshot = State()

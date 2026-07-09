@@ -20,26 +20,27 @@ dp = Dispatcher()
 # ==========================================
 # ⚙️ GROUPS & PAYMENT SETTINGS
 # ==========================================
-# Stars (XTR) ki price integer me hoti hai (1 Star = ~₹1.5). 
-# Aapne hisaab se "stars" ki value set kar lein.
 GROUPS = {
     "g1": {
         "name": "Shat", 
         "price": 199, 
+        "Usd_price":3,
         "stars": 133, # ₹199 / 1.5 = ~133 Stars
         "chat_id": "-1004445000742", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADyh4AAmjCeUaIxOc4OANLJxYE"
     },
     "g2": {
         "name": "Ian Students", 
-        "price": 199, 
+        "price": 199,
+        "Usd_price":3,
         "stars": 133, 
         "chat_id": "-1004458938934", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADiR4AAmjCeUastMuPKJmT_hYE"
     },
     "g3": {
         "name": "Pure l", 
-        "price": 199, 
+        "price": 199,
+        "Usd_price":3,
         "stars": 133, # ₹199 / 1.5 = ~133 Stars
         "chat_id": "-1003893753935", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADix4AAmjCeUaiYnw8VfpWHxYE"
@@ -47,6 +48,7 @@ GROUPS = {
     "g4": {
         "name": "Frced", 
         "price": 199, 
+        "Usd_price":3,
         "stars": 133, # ₹199 / 1.5 = ~133 Stars
         "chat_id": "-1003978784189", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjB4AAmjCeUZFY7dmTyGcVBYE"
@@ -54,13 +56,13 @@ GROUPS = {
     "g5": {
         "name": "self made ", 
         "price": 199, 
+        "Usd_price":3,
         "stars": 133, # ₹199 / 1.5 = ~133 Stars
         "chat_id": "-1003589926855", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjh4AAmjCeUY17uH7NGywPhYE"
     },
     
 }
-
 UPI_ID = "Hardiksharma8935@fam"
 USDT_ADDRESS = "0xba924a45fe0d1a4172d3230c767c7096d9854f97" # Apna BEP20 address daalein
 
@@ -86,7 +88,8 @@ def main_menu_kb():
     )
 
 def buy_groups_kb():
-    kb = [[KeyboardButton(text=f"📦 {data['name']} - ₹{data['price']}")] for g_id, data in GROUPS.items()]
+    # Yahan button par INR aur USD dono dikhenge
+    kb = [[KeyboardButton(text=f"📦 {data['name']} - ₹{data['price']} / ${data['usd_price']}")] for g_id, data in GROUPS.items()]
     kb.append([KeyboardButton(text="🔙 Back to Main Menu")])
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
@@ -117,7 +120,7 @@ def admin_approval_kb(user_id: int, g_id: str):
     ])
 
 # ==========================================
-# 🛠 UTILITIES (Save Users for Broadcast)
+# 🛠 UTILITIES
 # ==========================================
 def save_user(user_id):
     if not os.path.exists("users.txt"):
@@ -173,7 +176,7 @@ async def show_payment_methods(message: Message):
     group_name = message.text.replace("📦 ", "").split(" - ₹")[0]
     for g_id, data in GROUPS.items():
         if data["name"] == group_name:
-            text = f"You selected: **{data['name']}**\nPrice: **₹{data['price']}**\n\n👇 Select your payment method:"
+            text = f"You selected: **{data['name']}**\nPrice: **₹{data['price']} / ${data['usd_price']}**\n\n👇 Select your payment method:"
             await message.answer(text, reply_markup=payment_methods_kb(g_id), parse_mode="Markdown")
             return
 
@@ -183,7 +186,6 @@ async def process_upi(callback: CallbackQuery):
     g_id = callback.data.split("_")[2]
     price = GROUPS[g_id]['price']
     
-    # Auto Generate exact amount QR Code
     upi_url = f"upi://pay?pa={UPI_ID}&pn=PremiumStore&am={price}&cu=INR"
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={urllib.parse.quote(upi_url)}"
     
@@ -195,11 +197,11 @@ async def process_upi(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("method_usdt_"))
 async def process_usdt(callback: CallbackQuery):
     g_id = callback.data.split("_")[2]
+    usd_price = GROUPS[g_id]['usd_price']
     
-    # Auto Generate USDT Address QR Code
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={USDT_ADDRESS}"
     
-    caption = f"₮ **USDT (BEP20) Payment**\n\nAddress:\n`{USDT_ADDRESS}`\n\nCopy the exact address (Tap to copy) and send the funds. After payment, click **✅ I paid**."
+    caption = f"₮ **USDT (BEP20) Payment**\n\nAmount: **${usd_price}**\nAddress:\n`{USDT_ADDRESS}`\n\nCopy the exact address (Tap to copy) and send the funds. After payment, click **✅ I paid**."
     await callback.message.answer_photo(photo=qr_url, caption=caption, reply_markup=i_paid_kb(g_id, "usdt"), parse_mode="Markdown")
     await callback.answer()
 
@@ -207,20 +209,11 @@ async def process_usdt(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("method_amazon_"))
 async def process_amazon(callback: CallbackQuery, state: FSMContext):
     g_id = callback.data.split("_")[2]
+    usd_price = GROUPS[g_id]['usd_price']
     await state.update_data(g_id=g_id)
     await state.set_state(PaymentState.waiting_for_amazon_card)
-    await callback.message.answer("🎁 **Amazon Gift Card**\n\nPlease send your Amazon Gift Card Code or a Photo of the card in this chat now.", parse_mode="Markdown")
+    await callback.message.answer(f"🎁 **Amazon Gift Card**\n\nPlease send your **${usd_price}** Amazon Gift Card Code or a Photo of the card in this chat now.", parse_mode="Markdown")
     await callback.answer()
-
-@dp.message(StateFilter(PaymentState.waiting_for_amazon_card))
-async def receive_amazon_card(message: Message, state: FSMContext):
-    data = await state.get_data()
-    g_id = data['g_id']
-    # Save the user's message ID to forward it to admin later
-    await state.update_data(amazon_msg_id=message.message_id)
-    await state.set_state(PaymentState.waiting_for_amazon_confirm)
-    
-    await message.answer("✅ Gift card received. Click **✅ I paid** to submit it for Admin approval.", reply_markup=i_paid_kb(g_id, "amazon"), parse_mode="Markdown")
 
 # --- 4. TELEGRAM STARS METHOD (Auto Approve) ---
 @dp.callback_query(F.data.startswith("method_stars_"))
@@ -233,7 +226,7 @@ async def process_stars(callback: CallbackQuery):
         title=group['name'],
         description=f"Automated access to {group['name']}",
         payload=f"stars_{g_id}_{callback.from_user.id}",
-        provider_token="", # Must be empty for Telegram Stars
+        provider_token="", 
         currency="XTR",
         prices=[LabeledPrice(label=group['name'], amount=group['stars'])]
     )
@@ -245,7 +238,6 @@ async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
 
 @dp.message(F.successful_payment)
 async def successful_payment_handler(message: Message):
-    # Stars payment successful! Auto-approve.
     payload = message.successful_payment.invoice_payload
     _, g_id, user_id = payload.split("_")
     
@@ -253,14 +245,12 @@ async def successful_payment_handler(message: Message):
     try:
         invite_link = await bot.create_chat_invite_link(chat_id=target_chat_id, member_limit=1)
         await message.answer(f"⭐️ **Stars Payment Successful!**\n\nHere is your unique invite link:\n👉 {invite_link.invite_link}", parse_mode="Markdown")
-        
-        # Notify Admin
         await bot.send_message(config.OWNER_ID, f"⭐️ **Auto-Sale!**\nUser {message.from_user.full_name} bought {GROUPS[g_id]['name']} using Telegram Stars.")
     except Exception as e:
         await message.answer("Payment successful, but error generating link. Admin has been notified.")
         await bot.send_message(config.OWNER_ID, f"Error generating link for User {user_id} after Stars payment.")
 
-# --- I PAID BUTTON HANDLER (For UPI, USDT, Amazon) ---
+# --- I PAID BUTTON HANDLER ---
 @dp.callback_query(F.data.startswith("ipaid_"))
 async def handle_i_paid(callback: CallbackQuery, state: FSMContext):
     parts = callback.data.split("_")
@@ -280,13 +270,22 @@ async def handle_i_paid(callback: CallbackQuery, state: FSMContext):
         caption = f"🚨 **Amazon Card Request**\nUser: {callback.from_user.full_name} (`{callback.from_user.id}`)\nGroup: {GROUPS[g_id]['name']}"
         await bot.send_message(chat_id=config.OWNER_ID, text=caption, parse_mode="Markdown")
         
-        # Forward the exact message/photo the user sent
-        await bot.forward_message(chat_id=config.OWNER_ID, from_chat_id=callback.message.chat.id, message_id=msg_id)
+        if msg_id:
+            await bot.forward_message(chat_id=config.OWNER_ID, from_chat_id=callback.message.chat.id, message_id=msg_id)
         await bot.send_message(chat_id=config.OWNER_ID, text="Approve or Reject?", reply_markup=admin_approval_kb(callback.from_user.id, g_id))
         
         await callback.message.answer("✅ Your Amazon Gift Card has been sent to the admin. Please wait for approval.")
         await state.clear()
         await callback.answer()
+
+@dp.message(StateFilter(PaymentState.waiting_for_amazon_card))
+async def receive_amazon_card(message: Message, state: FSMContext):
+    data = await state.get_data()
+    g_id = data['g_id']
+    await state.update_data(amazon_msg_id=message.message_id)
+    await state.set_state(PaymentState.waiting_for_amazon_confirm)
+    
+    await message.answer("✅ Gift card received. Click **✅ I paid** to submit it for Admin approval.", reply_markup=i_paid_kb(g_id, "amazon"), parse_mode="Markdown")
 
 # --- SCREENSHOT HANDLER (UPI & USDT) ---
 @dp.message(StateFilter(PaymentState.waiting_for_screenshot), F.photo)
@@ -296,11 +295,14 @@ async def handle_screenshot(message: Message, state: FSMContext):
     method = data['method']
     group = GROUPS[g_id]
     
+    amount = group['price'] if method == "upi" else f"${group['usd_price']}"
+    
     caption = (
         f"🚨 **New {method.upper()} Payment**\n"
         f"User: {message.from_user.full_name} (@{message.from_user.username})\n"
         f"ID: `{message.from_user.id}`\n"
-        f"Group: {group['name']}"
+        f"Group: {group['name']}\n"
+        f"Amount: {amount}"
     )
     await bot.send_photo(
         chat_id=config.OWNER_ID, photo=message.photo[-1].file_id, 
@@ -329,7 +331,7 @@ async def reject_payment(callback: CallbackQuery):
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.reply("❌ Rejected.")
 
-# --- BROADCAST SYSTEM (Owner Only) ---
+# --- BROADCAST SYSTEM ---
 @dp.message(Command("broadcast"))
 async def cmd_broadcast(message: Message, state: FSMContext):
     if message.from_user.id == config.OWNER_ID:
@@ -352,7 +354,7 @@ async def process_broadcast(message: Message, state: FSMContext):
         try:
             await bot.copy_message(chat_id=int(uid), from_chat_id=message.chat.id, message_id=message.message_id)
             sent += 1
-            await asyncio.sleep(0.05) # Prevent flood wait
+            await asyncio.sleep(0.05)
         except:
             failed += 1
             
@@ -363,4 +365,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-        
+                       

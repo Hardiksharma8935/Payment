@@ -24,15 +24,15 @@ GROUPS = {
     "g1": {
         "name": "Shat", 
         "price": 199, 
-        "Usd_price":3,
-        "stars": 133, # ₹199 / 1.5 = ~133 Stars
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
         "chat_id": "-1004445000742", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADyh4AAmjCeUaIxOc4OANLJxYE"
     },
     "g2": {
         "name": "Ian Students", 
         "price": 199,
-        "Usd_price":3,
+        "usd_price": 3,
         "stars": 133, 
         "chat_id": "-1004458938934", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADiR4AAmjCeUastMuPKJmT_hYE"
@@ -40,29 +40,29 @@ GROUPS = {
     "g3": {
         "name": "Pure l", 
         "price": 199,
-        "Usd_price":3,
-        "stars": 133, # ₹199 / 1.5 = ~133 Stars
+        "usd_price": 3,
+        "stars": 133, 
         "chat_id": "-1003893753935", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADix4AAmjCeUaiYnw8VfpWHxYE"
     },
     "g4": {
         "name": "Frced", 
         "price": 199, 
-        "Usd_price":3,
-        "stars": 133, # ₹199 / 1.5 = ~133 Stars
+        "usd_price": 3,
+        "stars": 133, 
         "chat_id": "-1003978784189", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjB4AAmjCeUZFY7dmTyGcVBYE"
     },
     "g5": {
         "name": "self made ", 
         "price": 199, 
-        "Usd_price":3,
-        "stars": 133, # ₹199 / 1.5 = ~133 Stars
+        "usd_price": 3,
+        "stars": 133, 
         "chat_id": "-1003589926855", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjh4AAmjCeUY17uH7NGywPhYE"
     }
-    
 }
+
 UPI_ID = "Hardiksharma8935@fam"
 USDT_ADDRESS = "0xba924a45fe0d1a4172d3230c767c7096d9854f97" # Apna BEP20 address daalein
 
@@ -98,7 +98,6 @@ def demo_groups_kb():
     kb.append([KeyboardButton(text="🔙 Back to Main Menu")])
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
-# 4 Payment Methods Keyboard
 def payment_methods_kb(g_id: str):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="💳 UPI", callback_data=f"method_upi_{g_id}"),
@@ -107,7 +106,6 @@ def payment_methods_kb(g_id: str):
          InlineKeyboardButton(text="⭐️ Telegram Stars", callback_data=f"method_stars_{g_id}")]
     ])
 
-# I Paid Keyboard
 def i_paid_kb(g_id: str, method: str):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ I paid", callback_data=f"ipaid_{method}_{g_id}")]
@@ -187,7 +185,10 @@ async def process_upi(callback: CallbackQuery):
     price = GROUPS[g_id]['price']
     
     upi_url = f"upi://pay?pa={UPI_ID}&pn=PremiumStore&am={price}&cu=INR"
-    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={urllib.parse.quote(upi_url)}"
+    
+    # Fix 2: 'safe' parameter se @, ?, aur & encode nahi honge, jisse FamPay easily scan kar lega
+    safe_upi_url = urllib.parse.quote(upi_url, safe=':/?=@&')
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={safe_upi_url}"
     
     caption = f"💳 **UPI Payment**\n\nAmount: **₹{price}**\nUPI ID: `{UPI_ID}`\n\nScan the QR code above or copy the UPI ID to pay. After payment, click **✅ I paid**."
     await callback.message.answer_photo(photo=qr_url, caption=caption, reply_markup=i_paid_kb(g_id, "upi"), parse_mode="Markdown")
@@ -361,8 +362,9 @@ async def process_broadcast(message: Message, state: FSMContext):
     await message.answer(f"✅ Broadcast complete!\nSent: {sent}\nFailed: {failed}")
 
 async def main():
+    await bot.delete_webhook(drop_pending_updates=True) # Ye line atke hue messages clear karegi
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
-                       
+    

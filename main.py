@@ -60,7 +60,7 @@ GROUPS = {
         "stars": 133, # ₹199 / 1.5 = ~133 Stars
         "chat_id": "-1003589926855", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjh4AAmjCeUY17uH7NGywPhYE"
-    },
+    }
     
 }
 UPI_ID = "Hardiksharma8935@fam"

@@ -23,7 +23,7 @@ dp = Dispatcher()
 GROUPS = {
     "g1": {
         "name": "Stripchat", 
-        "price": 199, 
+        "price": 99, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
         "chat_id": "-1004445000742", 
@@ -31,7 +31,7 @@ GROUPS = {
     },
     "g2": {
         "name": "Indian Students", 
-        "price": 199,
+        "price": 99,
         "usd_price": 3,
         "stars": 133, 
         "chat_id": "-1004458938934", 
@@ -39,7 +39,7 @@ GROUPS = {
     },
     "g3": {
         "name": "Pure tamil", 
-        "price": 199,
+        "price": 99,
         "usd_price": 3,
         "stars": 133, 
         "chat_id": "-1003893753935", 
@@ -55,7 +55,7 @@ GROUPS = {
     },
     "g5": {
         "name": "self made ", 
-        "price": 199, 
+        "price": 99, 
         "usd_price": 3,
         "stars": 133, 
         "chat_id": "-1003589926855", 
@@ -63,7 +63,7 @@ GROUPS = {
     },
 "g6": {
         "name": "hidden secret", 
-        "price": 199, 
+        "price": 99, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
         "chat_id": "-1004407356883", 
@@ -71,7 +71,7 @@ GROUPS = {
     },
 "g7": {
         "name": "bad parents", 
-        "price": 199, 
+        "price": 149, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
         "chat_id": "-1003969174282", 
@@ -95,7 +95,7 @@ GROUPS = {
     },
 "g10": {
         "name": "car videos", 
-        "price": 99, 
+        "price": 49, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
         "chat_id": "-1004351633034", 
@@ -103,7 +103,7 @@ GROUPS = {
     },
 "g11": {
         "name": "ip cam cctv", 
-        "price": 199, 
+        "price": 99, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
         "chat_id": "-1003739836678", 
@@ -111,7 +111,7 @@ GROUPS = {
     },
 "g12": {
         "name": "only fans", 
-        "price": 199, 
+        "price": 99, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
         "chat_id": "-1003960924467", 
@@ -119,7 +119,7 @@ GROUPS = {
     },
 "g13": {
         "name": "Indian Teen ", 
-        "price": 299, 
+        "price": 199, 
         "usd_price": 5, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 233, 
         "chat_id": "-1003724534912", 
@@ -127,7 +127,7 @@ GROUPS = {
     },
 "g14": {
         "name": "Arbic Stuffs", 
-        "price": 199, 
+        "price": 99, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
         "chat_id": "-1004409206399", 
@@ -135,7 +135,7 @@ GROUPS = {
     },
 "g15": {
         "name": " mallu", 
-        "price": 199, 
+        "price": 99, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
         "chat_id": "-1004320995574", 

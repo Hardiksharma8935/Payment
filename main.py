@@ -122,7 +122,7 @@ GROUPS = {
         "price": 199, 
         "usd_price": 5, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 233, 
-        "chat_id": "-1003724534912", 
+        "chat_id": "-1003985171544", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADqh4AAmjCeUaem-bfAQORlhYE"
     },
 "g14": {

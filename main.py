@@ -142,13 +142,38 @@ GROUPS = {
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADUAwAAmjCgUbyd4xysXvrtxYE"
     },
     "g16": {
-        "name": " All In One ", 
+        "name": "Quality Link Group", 
         "price": 499, 
         "usd_price": 5, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 633, 
         "chat_id": "-1003599861740", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADmA0AAmjCgUYg1UY_ofR7vxYE"
+    },
+    g15": {
+        "name": " mom son ", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1004336932131", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADfRQAAghnMUYQOCV4bNnbxBYE"
+    },
+    g15": {
+        "name": " pakistani Cxp", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1003928326633", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD8QkAAp4PiEZ7T8vtPnvP7BYE"
+    },
+g15": {
+        "name": " tamil cxp ", 
+        "price": 199, 
+        "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
+        "stars": 133, 
+        "chat_id": "-1004292111897", 
+        "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD_wkAAp4PiEaDKqDxyG7DNxYE"
     }
+    
 
 }
 

@@ -134,7 +134,7 @@ GROUPS = {
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADrR4AAmjCeUZrD1n7ZSUqFxYE"
     },
 "g15": {
-        "name": " mallu", 
+        "name": "mallu", 
         "price": 99, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
         "stars": 133, 
@@ -149,7 +149,7 @@ GROUPS = {
         "chat_id": "-1003599861740", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADmA0AAmjCgUYg1UY_ofR7vxYE"
     },
-    g15": {
+    "g17": {
         "name": " mom son ", 
         "price": 199, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
@@ -157,7 +157,7 @@ GROUPS = {
         "chat_id": "-1004336932131", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADfRQAAghnMUYQOCV4bNnbxBYE"
     },
-    g15": {
+    "g18": {
         "name": " pakistani Cxp", 
         "price": 199, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai
@@ -165,7 +165,7 @@ GROUPS = {
         "chat_id": "-1003928326633", 
         "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD8QkAAp4PiEZ7T8vtPnvP7BYE"
     },
-g15": {
+"g19": {
         "name": " tamil cxp ", 
         "price": 199, 
         "usd_price": 3, # <-- Fix 1: Sabhi me chhota 'usd_price' kar diya hai

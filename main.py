@@ -384,3 +384,130 @@ async def show_group_details(message: Message):
             )
             await message.answer(text, reply_markup=group_purchase_kb(g_id), parse_mode="Markdown")
             return
+
+@dp.callback_query(F.data.startswith("buywallet_"))
+async def process_wallet_purchase(callback: CallbackQuery):
+    g_id = callback.data.split("_")[1]
+    group = GROUPS[g_id]
+    
+    async with AsyncSessionLocal() as session:
+        user = await get_user(session, callback.from_user.id)
+        
+        if user.balance_usd >= group['usd_price']:
+            # Deduct balance
+            user.balance_usd -= group['usd_price']
+            user.balance_inr -= group['price']
+            await session.commit()
+            
+            # Generate Link
+            try:
+                link = await bot.create_chat_invite_link(chat_id=group['chat_id'], member_limit=1)
+                await callback.message.answer(f"✅ **Purchase Successful!**\n\nHere is your unique invite link:\n👉 {link.invite_link}", parse_mode="Markdown")
+                await bot.send_message(config.OWNER_ID, f"🛍️ **New Sale!** User `{user.id}` bought {group['name']} using Wallet.")
+            except Exception as e:
+                await callback.message.answer("Payment successful, but error generating link. Admin notified.")
+                await bot.send_message(config.OWNER_ID, f"Error generating link for User `{user.id}`.")
+        else:
+            await callback.answer("❌ Insufficient Wallet Balance. Please deposit money first.", show_alert=True)
+
+# ==========================================
+# 👥 REFERRAL SYSTEM & OTHER MENUS
+# ==========================================
+@dp.message(F.text == "👥 Refer & Earn")
+async def show_referral(message: Message):
+    async with AsyncSessionLocal() as session:
+        user = await get_user(session, message.from_user.id)
+        bot_info = await bot.get_me()
+        ref_link = f"https://t.me/{bot_info.username}?start={user.id}"
+        
+        text = (
+            f"👥 **Refer & Earn Program**\n\n"
+            f"Share your link and earn **₹5 ($0.05)** for every user who joins and completes verification!\n\n"
+            f"🔗 **Your Link:**\n`{ref_link}`\n\n"
+            f"📊 **Your Stats:**\n"
+            f"• Referrals: {user.total_referrals}/100\n"
+            f"• Earnings: ₹{user.referral_earnings_inr:.2f}\n"
+            f"• Remaining Slots: {100 - user.total_referrals}"
+        )
+        await message.answer(text, parse_mode="Markdown")
+
+@dp.message(F.text == "🔙 Back")
+async def back_to_main(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Main Menu:", reply_markup=main_menu_kb())
+
+@dp.message(F.text == "📞 Contact Admin")
+async def contact_admin(message: Message):
+    await message.answer(f"👉 https://t.me/{config.OWNER_USERNAME}")
+
+@dp.message(F.text == "📢 Main Channel")
+async def main_channel(message: Message):
+    await message.answer(f"👉 https://t.me/{config.MAIN_CHANNEL.replace('@', '')}")
+
+@dp.message(F.text == "📂 Demo Channels")
+async def show_demo_menu(message: Message):
+    await message.answer("Select a group to see its demo:", reply_markup=demo_groups_kb())
+
+@dp.message(F.text.endswith("Demo"))
+async def show_demo_content(message: Message):
+    group_name = message.text.replace("📁 ", "").replace(" Demo", "")
+    for g_id, data in GROUPS.items():
+        if data["name"] == group_name:
+            await message.answer(f"**{group_name} Demo:**\n{data['demo']}", parse_mode="Markdown")
+            return
+
+# ==========================================
+# 📢 BROADCAST SYSTEM (Persistent DB)
+# ==========================================
+@dp.message(Command("broadcast"))
+async def cmd_broadcast(message: Message, state: FSMContext):
+    if message.from_user.id == config.OWNER_ID:
+        await message.answer("Send the message (Text or Photo) you want to broadcast:")
+        await state.set_state(BotState.broadcast_msg)
+
+@dp.message(StateFilter(BotState.broadcast_msg))
+async def process_broadcast(message: Message, state: FSMContext):
+    await state.clear()
+    
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User.id))
+        users = result.scalars().all()
+        
+    if not users:
+        return await message.answer("No users found in database.")
+        
+    sent, failed, blocked, deleted = 0, 0, 0, 0
+    await message.answer(f"Starting broadcast to {len(users)} users. This may take a while...")
+    
+    for uid in users:
+        try:
+            await bot.copy_message(chat_id=uid, from_chat_id=message.chat.id, message_id=message.message_id)
+            sent += 1
+        except TelegramForbiddenError:
+            blocked += 1
+        except TelegramBadRequest:
+            deleted += 1
+        except Exception:
+            failed += 1
+        await asyncio.sleep(0.05) # Prevent flood limits
+            
+    stats = (
+        f"✅ **Broadcast Complete!**\n\n"
+        f"👥 Total Users: {len(users)}\n"
+        f"✅ Successful: {sent}\n"
+        f"🚫 Blocked Bot: {blocked}\n"
+        f"👻 Deleted Accs: {deleted}\n"
+        f"❌ Failed Other: {failed}"
+    )
+    await message.answer(stats, parse_mode="Markdown")
+
+# ==========================================
+# 🚀 INITIALIZATION
+# ==========================================
+async def main():
+    await init_db()
+    await bot.delete_webhook(drop_pending_updates=True) 
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())

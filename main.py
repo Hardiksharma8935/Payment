@@ -332,17 +332,16 @@ async def process_amazon(callback: CallbackQuery, state: FSMContext):
     if intent == "buy":
         group = GROUPS[param]
         amt_inr = group['price']
-        amt_usd = group['usd_price']
     else:
         if currency == "INR":
             amt_inr = float(param)
-            amt_usd = float(param) / EXCHANGE_RATE
         else:
-            amt_usd = float(param)
+            # Convert USD deposit input accurately into INR for Amazon
             amt_inr = float(param) * EXCHANGE_RATE
 
-    amt = amt_inr if currency == "INR" else amt_usd
-    sym = "₹" if currency == "INR" else "$"
+    # Amazon ALWAYS uses INR
+    amt = amt_inr
+    sym = "₹"
     
     await state.update_data(intent=intent, param=param, currency=currency, method="Amazon", amount=amt)
     await state.set_state(PaymentState.waiting_for_amazon_card)
@@ -379,11 +378,16 @@ async def process_stars(callback: CallbackQuery):
 @dp.message(StateFilter(PaymentState.waiting_for_amazon_card))
 async def receive_amazon_card(message: Message, state: FSMContext):
     data = await state.get_data()
-    sym = "₹" if data['currency'] == "INR" else "$"
     
-    caption = f"🚨 **Amazon Card Verification**\nUser: `{message.from_user.id}`\nAmount: **{sym}{data['amount']:.2f}**\nIntent: {data['intent']}"
+    # Amazon is strictly INR
+    sym = "₹"
+    amt = data.get('amount', 0.0)
+    
+    caption = f"🚨 **Amazon Card Verification**\nUser: `{message.from_user.id}`\nAmount: **{sym}{amt:.2f}**\nIntent: {data['intent']}"
     await bot.send_message(config.OWNER_ID, caption, parse_mode="Markdown")
     await bot.forward_message(config.OWNER_ID, message.chat.id, message.message_id)
+    
+    # Pass original param & currency so the wallet backend calculation matches perfectly
     await bot.send_message(config.OWNER_ID, "Approve or Reject?", reply_markup=admin_approval_kb(message.from_user.id, data['intent'], data['param'], data['currency'], data['method']))
     
     await message.answer("✅ Gift card received. Your payment has been forwarded to the Admin for verification.\nPlease wait for approval.", reply_markup=main_menu_kb())

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import urllib.parse
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, KeyboardButton, 
@@ -43,9 +42,6 @@ GROUPS = {
     "g18": {"name": " pakistani Cxp", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1003928326633", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD8QkAAp4PiEZ7T8vtPnvP7BYE"},
     "g19": {"name": " tamil cxp ", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1004292111897", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD_wkAAp4PiEaDKqDxyG7DNxYE"}
 }
-
-UPI_ID = "Hardiksharma8935@fam"
-USDT_ADDRESS = "0xba924a45fe0d1a4172d3230c767c7096d9854f97" # BEP20
 
 EXCHANGE_RATE = 85.0
 
@@ -97,16 +93,23 @@ def demo_groups_kb():
 def currency_selection_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🇮🇳 Deposit in INR (₹)", callback_data="curr_INR")],
-        [InlineKeyboardButton(text="🇺🇸 Deposit in USD ($)", callback_data="curr_USD")]
+        [InlineKeyboardButton(text="🇺🇸 Deposit in USD ($)", callback_data=f"curr_USD")]
     ])
 
 def payment_methods_kb(intent: str, param: str, currency: str = "INR"):
-    # intent: 'deposit' or 'buy'. param is amount for deposit, g_id for buy.
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💳 UPI", callback_data=f"method_upi_{intent}_{param}_{currency}"),
-         InlineKeyboardButton(text="₮ USDT (BEP20)", callback_data=f"method_usdt_{intent}_{param}_{currency}")],
+        [InlineKeyboardButton(text="💰 Crypto (USDT, BTC, ETH, SOL...)", callback_data=f"method_cryptomenu_{intent}_{param}_{currency}")],
         [InlineKeyboardButton(text="🎁 Amazon Gift Card", callback_data=f"method_amazon_{intent}_{param}_{currency}"),
          InlineKeyboardButton(text="⭐️ Telegram Stars", callback_data=f"method_stars_{intent}_{param}_{currency}")]
+    ])
+
+def crypto_selection_kb(intent: str, param: str, currency: str):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="₮ USDT", callback_data=f"method_crypto_USDT_{intent}_{param}_{currency}"),
+         InlineKeyboardButton(text="₿ BTC", callback_data=f"method_crypto_BTC_{intent}_{param}_{currency}")],
+        [InlineKeyboardButton(text="🔷 ETH", callback_data=f"method_crypto_ETH_{intent}_{param}_{currency}"),
+         InlineKeyboardButton(text="🟣 SOL", callback_data=f"method_crypto_SOL_{intent}_{param}_{currency}")],
+        [InlineKeyboardButton(text="🔙 Back", callback_data=f"method_back_{intent}_{param}_{currency}")]
     ])
 
 def i_paid_kb(intent: str, param: str, method: str, currency: str):
@@ -115,7 +118,6 @@ def i_paid_kb(intent: str, param: str, method: str, currency: str):
     ])
 
 def admin_approval_kb(user_id: int, intent: str, param: str, currency: str, method: str):
-    # param = amount (deposit) or g_id (buy)
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Approve", callback_data=f"appr_{intent}_{user_id}_{param}_{currency}_{method}"),
          InlineKeyboardButton(text="❌ Reject", callback_data=f"rej_{intent}_{user_id}_{param}_{currency}_{method}")]
@@ -128,9 +130,9 @@ MENU_COMMANDS = ["🛒 Buy Groups", "👤 Profile & Wallet", "📂 Demo Channels
 
 @dp.message(F.text.in_(MENU_COMMANDS), StateFilter('*'))
 async def handle_menu_buttons(message: Message, state: FSMContext):
-    await state.clear() # Clears any pending action automatically!
+    await state.clear()
     async with AsyncSessionLocal() as session:
-        await get_user(session, message.from_user.id) # Ensure user exists
+        await get_user(session, message.from_user.id)
 
     if message.text in ["🔙 Back to Main Menu", "/start"]:
         await message.answer("Main Menu:", reply_markup=main_menu_kb())
@@ -168,7 +170,7 @@ async def cmd_start(message: Message, state: FSMContext):
     await message.answer("Welcome to the Premium Store! 🛍️\nPlease select an option below:", reply_markup=main_menu_kb())
 
 # ==========================================
-# 📂 DEMO CHANNELS FIX
+# 📂 DEMO CHANNELS
 # ==========================================
 @dp.message(F.text.endswith("Demo"), StateFilter('*'))
 async def show_demo_content(message: Message, state: FSMContext):
@@ -255,19 +257,35 @@ async def process_amount(message: Message, state: FSMContext):
         await message.answer("❌ Invalid amount. Please enter a valid number.")
 
 # ==========================================
-# 💳 PAYMENT PROCESSING
+# 💳 PAYMENT PROCESSING MENUS
 # ==========================================
-@dp.callback_query(F.data.startswith("method_"))
-async def process_method(callback: CallbackQuery):
-    _, method, intent, param, currency = callback.data.split("_")
+@dp.callback_query(F.data.startswith("method_cryptomenu_"))
+async def process_cryptomenu(callback: CallbackQuery):
+    _, _, intent, param, currency = callback.data.split("_")
+    await callback.message.edit_text(
+        "💰 Please select the cryptocurrency you want to pay with:",
+        reply_markup=crypto_selection_kb(intent, param, currency)
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("method_back_"))
+async def process_back_method(callback: CallbackQuery):
+    _, _, intent, param, currency = callback.data.split("_")
+    await callback.message.edit_text(
+        "👇 Select your payment method:",
+        reply_markup=payment_methods_kb(intent, param, currency)
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("method_crypto_"))
+async def process_crypto_payment(callback: CallbackQuery):
+    _, _, coin, intent, param, currency = callback.data.split("_")
     
-    # Calculate exact amount required
     if intent == "buy":
         group = GROUPS[param]
         amt_inr = group['price']
         amt_usd = group['usd_price']
     else:
-        # Deposit
         if currency == "INR":
             amt_inr = float(param)
             amt_usd = float(param) / EXCHANGE_RATE
@@ -275,38 +293,86 @@ async def process_method(callback: CallbackQuery):
             amt_usd = float(param)
             amt_inr = float(param) * EXCHANGE_RATE
 
-    if method == "upi":
-        upi_url = f"upi://pay?pa={UPI_ID}&pn=PremiumStore&am={amt_inr}&cu=INR"
-        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={urllib.parse.quote(upi_url, safe=':/?=@&')}"
-        caption = f"💳 **UPI Payment**\n\nAmount: **₹{amt_inr:.2f}**\nUPI ID: `{UPI_ID}`\n\nScan QR or copy UPI ID. Click **✅ I paid** after sending."
-        await callback.message.answer_photo(photo=qr_url, caption=caption, reply_markup=i_paid_kb(intent, param, method, currency), parse_mode="Markdown")
-
-    elif method == "usdt":
-        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={USDT_ADDRESS}"
-        caption = f"₮ **USDT (BEP20) Payment**\n\nAmount: **${amt_usd:.2f}**\nAddress: `{USDT_ADDRESS}`\n\nSend exactly to this BEP20 address. Click **✅ I paid** after sending."
-        await callback.message.answer_photo(photo=qr_url, caption=caption, reply_markup=i_paid_kb(intent, param, method, currency), parse_mode="Markdown")
-
-    elif method == "amazon":
-        # BUG FIX: Shows correct INR/USD symbol
-        sym = "₹" if currency == "INR" else "$"
-        amt = amt_inr if currency == "INR" else amt_usd
+    target_amount = amt_inr if currency == "INR" else amt_usd
+    sym = "₹" if currency == "INR" else "$"
+    
+    addresses = {
+        "USDT": config.USDT_ADDRESS,
+        "BTC": config.BTC_ADDRESS,
+        "ETH": config.ETH_ADDRESS,
+        "SOL": config.SOL_ADDRESS
+    }
+    wallet_address = addresses.get(coin, "Not Configured")
+    
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={wallet_address}"
+    caption = (
+        f"🪙 **{coin} Payment**\n\n"
+        f"Amount to Send: **{sym}{target_amount:.2f}**\n\n"
+        f"Network Address:\n`{wallet_address}`\n\n"
+        f"Tap the address to copy it. Send the exact amount and click **✅ I paid**."
+    )
+    
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
         
-        # We use FSM to catch the next message (photo/text)
-        state = dp.fsm.resolve_context(bot, callback.from_user.id, callback.message.chat.id)
-        await state.update_data(intent=intent, param=param, currency=currency, method=method, amount=amt)
-        await state.set_state(PaymentState.waiting_for_amazon_card)
-        await callback.message.answer(f"🎁 **Amazon Gift Card**\n\nPlease send your **{sym}{amt:.2f}** Amazon Gift Card Code or Photo in this chat now.", parse_mode="Markdown", reply_markup=cancel_menu_kb())
+    await callback.message.answer_photo(
+        photo=qr_url, 
+        caption=caption, 
+        reply_markup=i_paid_kb(intent, param, coin, currency), 
+        parse_mode="Markdown"
+    )
+    await callback.answer()
 
-    elif method == "stars":
-        stars_cost = int(amt_usd * 50) # 1 USD = 50 Stars approx
-        title = "Wallet Deposit" if intent == "deposit" else GROUPS[param]['name']
-        payload = f"stars_{intent}_{param}_{currency}_{callback.from_user.id}_{stars_cost}"
+@dp.callback_query(F.data.startswith("method_amazon_"))
+async def process_amazon(callback: CallbackQuery, state: FSMContext):
+    _, _, intent, param, currency = callback.data.split("_")
+    
+    if intent == "buy":
+        group = GROUPS[param]
+        amt_inr = group['price']
+        amt_usd = group['usd_price']
+    else:
+        if currency == "INR":
+            amt_inr = float(param)
+            amt_usd = float(param) / EXCHANGE_RATE
+        else:
+            amt_usd = float(param)
+            amt_inr = float(param) * EXCHANGE_RATE
+
+    amt = amt_inr if currency == "INR" else amt_usd
+    sym = "₹" if currency == "INR" else "$"
+    
+    await state.update_data(intent=intent, param=param, currency=currency, method="Amazon", amount=amt)
+    await state.set_state(PaymentState.waiting_for_amazon_card)
+    await callback.message.edit_text(f"🎁 **Amazon Gift Card**\n\nPlease send your **{sym}{amt:.2f}** Amazon Gift Card Code or Photo in this chat now.", parse_mode="Markdown")
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("method_stars_"))
+async def process_stars(callback: CallbackQuery):
+    _, _, intent, param, currency = callback.data.split("_")
+    
+    if intent == "buy":
+        amt_usd = GROUPS[param]['usd_price']
+        title = GROUPS[param]['name']
+    else:
+        amt_usd = float(param) if currency == "USD" else (float(param) / EXCHANGE_RATE)
+        title = "Wallet Deposit"
         
-        await bot.send_invoice(
-            chat_id=callback.message.chat.id, title=title, description=f"Pay {stars_cost} Stars",
-            payload=payload, provider_token="", currency="XTR",
-            prices=[LabeledPrice(label=title, amount=stars_cost)]
-        )
+    stars_cost = int(amt_usd * 50) # 1 USD = 50 Stars approx
+    payload = f"stars_{intent}_{param}_{currency}_{callback.from_user.id}_{stars_cost}"
+    
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+        
+    await bot.send_invoice(
+        chat_id=callback.message.chat.id, title=title, description=f"Pay {stars_cost} Stars",
+        payload=payload, provider_token="", currency="XTR",
+        prices=[LabeledPrice(label=title, amount=stars_cost)]
+    )
     await callback.answer()
 
 # --- AMAZON CARD HANDLER ---
@@ -320,10 +386,10 @@ async def receive_amazon_card(message: Message, state: FSMContext):
     await bot.forward_message(config.OWNER_ID, message.chat.id, message.message_id)
     await bot.send_message(config.OWNER_ID, "Approve or Reject?", reply_markup=admin_approval_kb(message.from_user.id, data['intent'], data['param'], data['currency'], data['method']))
     
-    await message.answer("✅ Gift card received. Your payment has been forwarded to the Admin for verification.\nPlease wait for approval.")
+    await message.answer("✅ Gift card received. Your payment has been forwarded to the Admin for verification.\nPlease wait for approval.", reply_markup=main_menu_kb())
     await state.clear()
 
-# --- SCREENSHOT HANDLER (BUG FIX: 8) ---
+# --- SCREENSHOT HANDLER ---
 @dp.callback_query(F.data.startswith("ipaid_"))
 async def handle_i_paid(callback: CallbackQuery, state: FSMContext):
     _, method, intent, param, currency = callback.data.split("_")
@@ -349,7 +415,7 @@ async def handle_screenshot(message: Message, state: FSMContext):
         f"User: {message.from_user.full_name} (@{message.from_user.username})\n"
         f"ID: `{message.from_user.id}`\n"
         f"Intent: **{intent.upper()}**\n"
-        f"Amount: **{sym}{amt}**"
+        f"Amount: **{sym}{amt:.2f}**"
     )
     
     await bot.send_photo(
@@ -382,7 +448,7 @@ async def approve_payment(callback: CallbackQuery):
             await session.commit()
             
             sym = "₹" if currency == "INR" else "$"
-            await bot.send_message(user_id, f"✅ **Payment verified successfully.**\nYour wallet has been credited with **{sym}{amt}**.", parse_mode="Markdown")
+            await bot.send_message(user_id, f"✅ **Payment verified successfully.**\nYour wallet has been credited with **{sym}{amt:.2f}**.", parse_mode="Markdown")
             
         elif intent == "buy":
             group = GROUPS[param]
@@ -415,6 +481,10 @@ async def reject_payment(callback: CallbackQuery):
     await callback.message.reply("❌ Rejected.")
 
 # --- Stars Automatic Handler ---
+@dp.pre_checkout_query()
+async def pre_checkout_handler(pre_checkout_query: PreCheckoutQuery):
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
 @dp.message(F.successful_payment, StateFilter('*'))
 async def successful_payment_handler(message: Message):
     payload = message.successful_payment.invoice_payload
@@ -425,12 +495,14 @@ async def successful_payment_handler(message: Message):
             user = await get_user(session, int(user_id))
             
             if intent == "deposit":
-                amt_usd = float(param)
+                amt_usd = float(param) if currency == "USD" else float(param) / EXCHANGE_RATE
                 amt_inr = amt_usd * EXCHANGE_RATE
                 user.balance_usd += amt_usd
                 user.balance_inr += amt_inr
                 await session.commit()
-                await message.answer(f"⭐️ **Stars Deposit Successful!**\nWallet credited with **${amt_usd}**.", parse_mode="Markdown")
+                sym = "₹" if currency == "INR" else "$"
+                amt = amt_inr if currency == "INR" else amt_usd
+                await message.answer(f"⭐️ **Stars Deposit Successful!**\nWallet credited with **{sym}{amt:.2f}**.", parse_mode="Markdown")
                 
             elif intent == "buy":
                 group = GROUPS[param]

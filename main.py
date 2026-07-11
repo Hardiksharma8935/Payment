@@ -384,5 +384,3 @@ async def show_group_details(message: Message):
             )
             await message.answer(text, reply_markup=group_purchase_kb(g_id), parse_mode="Markdown")
             return
-
-@d

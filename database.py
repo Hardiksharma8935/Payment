@@ -1,23 +1,31 @@
+import os
+from datetime import datetime
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
-from sqlalchemy import BigInteger, Float, Integer, Boolean, String
+from sqlalchemy import BigInteger, Float, Integer, String, DateTime
 from config import config
 
-# Create async engine and sessionmaker
 engine = create_async_engine(config.DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 Base = declarative_base()
 
 class User(Base):
     __tablename__ = 'users'
-    
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True) # Telegram User ID
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     balance_inr: Mapped[float] = mapped_column(Float, default=0.0)
     balance_usd: Mapped[float] = mapped_column(Float, default=0.0)
-    referrer_id: Mapped[int] = mapped_column(BigInteger, nullable=True)
-    total_referrals: Mapped[int] = mapped_column(Integer, default=0)
-    referral_earnings_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+class PurchaseHistory(Base):
+    __tablename__ = 'purchase_history'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger)
+    product_name: Mapped[str] = mapped_column(String)
+    price: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String)
+    method: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default="Pending")
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 async def init_db():
     async with engine.begin() as conn:
@@ -30,4 +38,4 @@ async def get_user(session: AsyncSession, user_id: int) -> User:
         session.add(user)
         await session.commit()
     return user
-  
+    

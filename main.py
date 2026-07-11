@@ -78,13 +78,14 @@ def buy_groups_kb():
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 def deposit_methods_kb(amount_usd: float):
+    # Added BEP20 label to all crypto options
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Amazon Gift Card", callback_data=f"dep_amazon_{amount_usd}")],
         [InlineKeyboardButton(text="⭐️ Telegram Stars", callback_data=f"dep_stars_{amount_usd}")],
-        [InlineKeyboardButton(text="🪙 USDT (TRC20)", callback_data=f"dep_crypto_USDT_{amount_usd}"),
-         InlineKeyboardButton(text="₿ BTC", callback_data=f"dep_crypto_BTC_{amount_usd}")],
-        [InlineKeyboardButton(text="🔷 ETH", callback_data=f"dep_crypto_ETH_{amount_usd}"),
-         InlineKeyboardButton(text="🟣 SOL", callback_data=f"dep_crypto_SOL_{amount_usd}")]
+        [InlineKeyboardButton(text="🪙 USDT (BEP20)", callback_data=f"dep_crypto_USDT_{amount_usd}"),
+         InlineKeyboardButton(text="₿ BTC (BEP20)", callback_data=f"dep_crypto_BTC_{amount_usd}")],
+        [InlineKeyboardButton(text="🔷 ETH (BEP20)", callback_data=f"dep_crypto_ETH_{amount_usd}"),
+         InlineKeyboardButton(text="🟣 SOL (BEP20)", callback_data=f"dep_crypto_SOL_{amount_usd}")]
     ])
 
 def i_paid_kb(method: str, amount_usd: float):
@@ -210,10 +211,13 @@ async def process_crypto_deposit(callback: CallbackQuery):
     address = addresses.get(crypto, "Not Configured")
     
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={address}"
+    # Added clear warning about BEP20 network
     caption = (
-        f"🪙 **{crypto} Payment**\n\n"
+        f"🪙 **{crypto} (BEP20) Payment**\n\n"
         f"Amount to Send: **${amount_usd}**\n\n"
-        f"Network Address:\n`{address}`\n\n"
+        f"⚠️ **Network: BEP20 (BNB Smart Chain) ONLY!**\n"
+        f"*(Do not use TRC20 or ERC20, your funds will be lost)*\n\n"
+        f"Address:\n`{address}`\n\n"
         f"Tap the address to copy. Send exact amount and click **✅ I Paid**."
     )
     await callback.message.answer_photo(photo=qr_url, caption=caption, reply_markup=i_paid_kb(f"crypto_{crypto}", amount_usd), parse_mode="Markdown")
@@ -381,10 +385,4 @@ async def show_group_details(message: Message):
             await message.answer(text, reply_markup=group_purchase_kb(g_id), parse_mode="Markdown")
             return
 
-@dp.callback_query(F.data.startswith("buywallet_"))
-async def process_wallet_purchase(callback: CallbackQuery):
-    g_id = callback.data.split("_")[1]
-    group = GROUPS[g_id]
-    
-    async with AsyncSessionLocal() as session:
-        user = awai
+@d

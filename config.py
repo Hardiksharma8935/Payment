@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     OWNER_USERNAME: str
     MAIN_CHANNEL: str
     
-    # Crypto Configurations
+    # Configurable Crypto Addresses
     USDT_ADDRESS: str = "Not Configured"
     BTC_ADDRESS: str = "Not Configured"
     ETH_ADDRESS: str = "Not Configured"

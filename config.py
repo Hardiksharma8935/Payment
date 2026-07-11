@@ -6,6 +6,12 @@ class Settings(BaseSettings):
     OWNER_ID: int
     OWNER_USERNAME: str
     MAIN_CHANNEL: str
+    
+    # Crypto Configurations
+    USDT_ADDRESS: str = "Not Configured"
+    BTC_ADDRESS: str = "Not Configured"
+    ETH_ADDRESS: str = "Not Configured"
+    SOL_ADDRESS: str = "Not Configured"
 
     class Config:
         env_file = ".env"

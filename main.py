@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import urllib.parse
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, KeyboardButton, 
@@ -10,6 +11,7 @@ from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy import select
+from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 from config import config
 from database import init_db, AsyncSessionLocal, User, PurchaseHistory, get_user
@@ -25,7 +27,7 @@ GROUPS = {
     "g1": {"name": "Stripchat", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004445000742", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADyh4AAmjCeUaIxOc4OANLJxYE"},
     "g2": {"name": "Indian Students", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004458938934", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADiR4AAmjCeUastMuPKJmT_hYE"},
     "g3": {"name": "Pure tamil", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1003893753935", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADix4AAmjCeUaiYnw8VfpWHxYE"},
-    "g4": {"name": "Forced", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1003997365417", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjB4AAmjCeUZFY7dmTyGcVBYE"},
+    "g4": {"name": "Forced", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1003978784189", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjB4AAmjCeUZFY7dmTyGcVBYE"},
     "g5": {"name": "self made ", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1003589926855", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADjh4AAmjCeUY17uH7NGywPhYE"},
     "g6": {"name": "hidden secret", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004407356883", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADlB4AAmjCeUYrdi34PirAWhYE"},
     "g7": {"name": "bad parents", "price": 149, "usd_price": 3, "stars": 133, "chat_id": "-1003969174282", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADlR4AAmjCeUZGaDMBp5MGoBYE"},
@@ -168,6 +170,90 @@ async def cmd_start(message: Message, state: FSMContext):
     async with AsyncSessionLocal() as session:
         await get_user(session, message.from_user.id)
     await message.answer("Welcome to the Premium Store! 🛍️\nPlease select an option below:", reply_markup=main_menu_kb())
+
+# ==========================================
+# 📢 BROADCAST & ADMIN COMMANDS
+# ==========================================
+@dp.message(Command("broadcast"))
+async def cmd_broadcast(message: Message, state: FSMContext):
+    if message.from_user.id == config.OWNER_ID:
+        await message.answer("📢 Send the message (Text or Photo) you want to broadcast to all users:")
+        await state.set_state(PaymentState.broadcast_msg)
+
+@dp.message(StateFilter(PaymentState.broadcast_msg))
+async def process_broadcast(message: Message, state: FSMContext):
+    await state.clear()
+    
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User.id))
+        users = result.scalars().all()
+        
+    if not users:
+        return await message.answer("No users found in the database.")
+        
+    sent, failed, blocked, deleted = 0, 0, 0, 0
+    await message.answer(f"Starting broadcast to {len(users)} users. This may take a while...")
+    
+    for uid in users:
+        try:
+            await bot.copy_message(chat_id=uid, from_chat_id=message.chat.id, message_id=message.message_id)
+            sent += 1
+        except TelegramForbiddenError:
+            blocked += 1
+        except TelegramBadRequest:
+            deleted += 1
+        except Exception:
+            failed += 1
+        await asyncio.sleep(0.05) # Prevent flood wait limits
+            
+    stats = (
+        f"✅ **Broadcast Complete!**\n\n"
+        f"👥 Total Users: {len(users)}\n"
+        f"✅ Successful: {sent}\n"
+        f"🚫 Blocked Bot: {blocked}\n"
+        f"👻 Deleted Accs: {deleted}\n"
+        f"❌ Failed Other: {failed}"
+    )
+    await message.answer(stats, parse_mode="Markdown")
+
+@dp.message(Command("addbalance", "removebalance"))
+async def manual_balance_update(message: Message, command: Command):
+    if message.from_user.id != config.OWNER_ID:
+        return
+    try:
+        args = command.args.split()
+        if len(args) != 2:
+            raise ValueError
+            
+        target_id = int(args[0])
+        amount_inr = float(args[1])
+        amount_usd = amount_inr / EXCHANGE_RATE
+        
+        async with AsyncSessionLocal() as session:
+            user = await get_user(session, target_id)
+            if command.command == "addbalance":
+                user.balance_inr += amount_inr
+                user.balance_usd += amount_usd
+                msg = f"✅ Successfully **added** ₹{amount_inr:.2f} to user `{target_id}`."
+            else:
+                user.balance_inr = max(0, user.balance_inr - amount_inr)
+                user.balance_usd = max(0, user.balance_usd - amount_usd)
+                msg = f"✅ Successfully **removed** ₹{amount_inr:.2f} from user `{target_id}`."
+            await session.commit()
+            
+        await message.answer(msg, parse_mode="Markdown")
+        
+        # User ko notify karne ka try karein
+        try:
+            if command.command == "addbalance":
+                await bot.send_message(target_id, f"🎁 **Admin Added Balance!**\nYour wallet has been credited with **₹{amount_inr:.2f}**.", parse_mode="Markdown")
+            else:
+                await bot.send_message(target_id, f"⚠️ **Balance Deducted!**\n**₹{amount_inr:.2f}** has been removed from your wallet by the Admin.", parse_mode="Markdown")
+        except Exception:
+            pass
+            
+    except Exception:
+        await message.answer("⚠️ **Incorrect Format!**\nUsage: `/addbalance <user_id> <amount_in_INR>`\nExample: `/addbalance 123456789 500`", parse_mode="Markdown")
 
 # ==========================================
 # 📂 DEMO CHANNELS
@@ -387,7 +473,6 @@ async def receive_amazon_card(message: Message, state: FSMContext):
     await bot.send_message(config.OWNER_ID, caption, parse_mode="Markdown")
     await bot.forward_message(config.OWNER_ID, message.chat.id, message.message_id)
     
-    # Pass original param & currency so the wallet backend calculation matches perfectly
     await bot.send_message(config.OWNER_ID, "Approve or Reject?", reply_markup=admin_approval_kb(message.from_user.id, data['intent'], data['param'], data['currency'], data['method']))
     
     await message.answer("✅ Gift card received. Your payment has been forwarded to the Admin for verification.\nPlease wait for approval.", reply_markup=main_menu_kb())

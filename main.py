@@ -101,6 +101,7 @@ def currency_selection_kb():
 def payment_methods_kb(intent: str, param: str, currency: str = "INR"):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="💰 Crypto (USDT, BTC, ETH, SOL...)", callback_data=f"method_cryptomenu_{intent}_{param}_{currency}")],
+        [InlineKeyboardButton(text="💳 UPI", callback_data=f"method_upi_{intent}_{param}_{currency}")],
         [InlineKeyboardButton(text="🎁 Amazon Gift Card", callback_data=f"method_amazon_{intent}_{param}_{currency}"),
          InlineKeyboardButton(text="⭐️ Telegram Stars", callback_data=f"method_stars_{intent}_{param}_{currency}")]
     ])
@@ -243,7 +244,6 @@ async def manual_balance_update(message: Message, command: Command):
             
         await message.answer(msg, parse_mode="Markdown")
         
-        # User ko notify karne ka try karein
         try:
             if command.command == "addbalance":
                 await bot.send_message(target_id, f"🎁 **Admin Added Balance!**\nYour wallet has been credited with **₹{amount_inr:.2f}**.", parse_mode="Markdown")
@@ -459,6 +459,26 @@ async def process_stars(callback: CallbackQuery):
         prices=[LabeledPrice(label=title, amount=stars_cost)]
     )
     await callback.answer()
+
+@dp.callback_query(F.data.startswith("method_upi_"))
+async def process_upi(callback: CallbackQuery):
+    _, _, intent, param, currency = callback.data.split("_")
+    
+    # Format owner username safely to ensure the deep link works
+    owner_username = config.OWNER_USERNAME.replace("@", "")
+    deep_link = f"https://t.me/{owner_username}?text=UPI"
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💬 Contact Admin for UPI Payment", url=deep_link)],
+        [InlineKeyboardButton(text="🔙 Back", callback_data=f"method_back_{intent}_{param}_{currency}")]
+    ])
+    
+    await callback.message.edit_text(
+        "To pay via UPI, please contact the Admin. Tap the button below.",
+        reply_markup=kb
+    )
+    await callback.answer()
+
 
 # --- AMAZON CARD HANDLER ---
 @dp.message(StateFilter(PaymentState.waiting_for_amazon_card))

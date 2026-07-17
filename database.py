@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
-from sqlalchemy import BigInteger, Float, Integer, String, DateTime
+from sqlalchemy import BigInteger, Float, Integer, String, DateTime, Boolean
 from config import config
 
 engine = create_async_engine(config.DATABASE_URL, echo=False)
@@ -15,6 +15,12 @@ class User(Base):
     balance_inr: Mapped[float] = mapped_column(Float, default=0.0)
     balance_usd: Mapped[float] = mapped_column(Float, default=0.0)
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # --- New Referral & Anti-Abuse Fields ---
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    referrer_id: Mapped[int] = mapped_column(BigInteger, nullable=True)
+    referrals_count: Mapped[int] = mapped_column(Integer, default=0)
+    referral_earnings: Mapped[float] = mapped_column(Float, default=0.0)
 
 class PurchaseHistory(Base):
     __tablename__ = 'purchase_history'
@@ -27,15 +33,13 @@ class PurchaseHistory(Base):
     status: Mapped[str] = mapped_column(String, default="Pending")
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-# database.py ke andar baaki models ke sath ise add karein:
 class SecurityLog(Base):
     __tablename__ = 'security_logs'
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger)
     username: Mapped[str] = mapped_column(String, nullable=True)
-    reason: Mapped[str] = mapped_column(String)  # e.g., "Flood Attempt", "Failed CAPTCHA"
+    reason: Mapped[str] = mapped_column(String)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
 
 async def init_db():
     async with engine.begin() as conn:

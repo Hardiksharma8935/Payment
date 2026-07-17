@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+import time
 import urllib.parse
 from datetime import datetime
 from aiogram import Bot, Dispatcher, F, BaseMiddleware
@@ -12,11 +13,11 @@ from aiogram.types import (
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from sqlalchemy import select
+from sqlalchemy import select, update
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 from config import config
-from database import init_db, AsyncSessionLocal, User, PurchaseHistory, get_user, SecurityLog
+from database import init_db, AsyncSessionLocal, User, PurchaseHistory, SecurityLog, get_user
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=config.BOT_TOKEN)
@@ -24,6 +25,9 @@ dp = Dispatcher()
 
 EXCHANGE_RATE = 85.0
 
+# ==========================================
+# ⚙️ GROUPS & PAYMENT SETTINGS
+# ==========================================
 GROUPS = {
     "g1": {"name": "Stripchat", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004445000742", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADyh4AAmjCeUaIxOc4OANLJxYE"},
     "g2": {"name": "Indian Students", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004458938934", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADiR4AAmjCeUastMuPKJmT_hYE"},
@@ -43,54 +47,49 @@ GROUPS = {
     "g16": {"name": "All In One ", "price": 499, "usd_price": 10, "stars": 833, "chat_id": "-1003599861740", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADmA0AAmjCgUYg1UY_ofR7vxYE"},
     "g17": {"name": " mom son ", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1003688683917", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADfRQAAghnMUYQOCV4bNnbxBYE"},
     "g18": {"name": " pakistani Cxp", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1003928326633", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD8QkAAp4PiEZ7T8vtPnvP7BYE"},
-    "g19": {"name": " tamil cxp ", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1004462050531", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD_wkAAp4PiEaDKqDxyG7DNxYE"},
-    "g20": {"name": " foreign cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1004458448520", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD9QgAAhoLqUYNLwST4Tz1jxYE"},
-    "g21": {"name": " Gay cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1004435458777", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD9QgAAhoLqUYNLwST4Tz1jxYE"},
-    "g22": {"name": " Spy ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1003864900874", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD9QgAAhoLqUYNLwST4Tz1jxYE"},
-    "g23": {"name": " Mallu cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1003993043440", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD9QgAAhoLqUYNLwST4Tz1jxYE"},
-    "g24": {"name": " All Links In One ", "price": 799, "usd_price": 20, "stars": 933, "chat_id": "-1003599861740", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD9QgAAhoLqUYNLwST4Tz1jxYE"}
-
+    "g19": {"name": " tamil cxp ", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1004292111897", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD_wkAAp4PiEaDKqDxyG7DNxYE"},
+    "g20": {"name": " foreign cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1004458448520", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD9QgAAhoLqUYNLwST4Tz1jxYE"}
 }
 
-
-# Configurable Crypto Addresses
+# Configuration Addresses
 USDT_ADDRESS = config.USDT_ADDRESS
 BTC_ADDRESS = config.BTC_ADDRESS
 ETH_ADDRESS = config.ETH_ADDRESS
 SOL_ADDRESS = config.SOL_ADDRESS
 
-# Security Config
-THROTTLING_CACHE = {}  # Format: {user_id: last_timestamp}
-BANNED_USERS = set()   # In-memory Shadow Ban List
+# ==========================================
+# 🛑 ANTI-ABUSE MIDDLEWARE (Rate Limit & Shadow Ban)
+# ==========================================
+THROTTLING_CACHE = {}  # {user_id: [timestamps]}
+BANNED_USERS = set()
 
-# ==========================================
-# 🛑 MIDDLEWARES (Rate Limiting & Shadow Ban)
-# ==========================================
 class SecurityMiddleware(BaseMiddleware):
     async def __call__(self, handler, event, data):
         user = data.get("event_from_user")
         if not user:
             return await handler(event, data)
             
-        # 1. Shadow Ban Filter
         if user.id in BANNED_USERS:
-            return  # Completely drop the execution silently
+            return # Silent drop for shadowbanned users
 
-        # 2. Rate Limiting (Anti-Flood)
-        now = datetime.utcnow().timestamp()
-        last_time = THROTTLING_CACHE.get(user.id, 0)
+        now = time.time()
+        timestamps = THROTTLING_CACHE.get(user.id, [])
+        # Keep timestamps from the last 3 seconds
+        timestamps = [t for t in timestamps if now - t < 3.0]
+        timestamps.append(now)
+        THROTTLING_CACHE[user.id] = timestamps
         
-        if now - last_time < 1.0:  # 1 message per second constraint
-            THROTTLING_CACHE[user.id] = now
-            if isinstance(event, Message):
+        # If more than 5 messages in 3 seconds -> Suspected Bot/Spammer
+        if len(timestamps) > 5:
+            if len(timestamps) == 6: # Log once per burst
                 async with AsyncSessionLocal() as session:
-                    log = SecurityLog(user_id=user.id, username=user.username, reason="Flood/Throttling Limit Triggered")
+                    log = SecurityLog(user_id=user.id, username=user.username, reason="Burst Rate Limit (Spam)")
                     session.add(log)
                     await session.commit()
-                return await event.answer("⚠️ System Warning: Please do not spam inputs.")
-            return
-
-        THROTTLING_CACHE[user.id] = now
+                if isinstance(event, Message):
+                    await event.answer("⚠️ You are sending requests too fast. Please slow down.")
+            return # Drop execution
+            
         return await handler(event, data)
 
 dp.message.middleware(SecurityMiddleware())
@@ -115,16 +114,14 @@ def main_menu_kb():
         keyboard=[
             [KeyboardButton(text="🛒 Buy Groups"), KeyboardButton(text="👤 Profile & Wallet")],
             [KeyboardButton(text="📂 Demo Channels"), KeyboardButton(text="📜 Purchase History")],
-            [KeyboardButton(text="📢 Main Channel"), KeyboardButton(text="📞 Contact Admin")]
+            [KeyboardButton(text="📢 Main Channel"), KeyboardButton(text="🤝 Referral Program")],
+            [KeyboardButton(text="📞 Contact Admin")]
         ],
         resize_keyboard=True
     )
 
 def cancel_menu_kb():
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="🔙 Back to Main Menu")]], 
-        resize_keyboard=True
-    )
+    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="🔙 Back to Main Menu")]], resize_keyboard=True)
 
 def buy_groups_kb():
     kb = [[KeyboardButton(text=f"📦 {data['name']} - ₹{data['price']} / ${data['usd_price']}")] for g_id, data in GROUPS.items()]
@@ -177,53 +174,151 @@ def admin_approval_kb(user_id: int, intent: str, param: str, currency: str, meth
     ])
 
 # ==========================================
-# 🛑 CAPTCHA SYSTEM (Anti-Bot Verification)
+# 🔗 SAFE INVITE GENERATOR (Retry & Wallet Refund System)
 # ==========================================
+async def safe_invite_generator(chat_id: str, user_id: int, amount_inr: float, amount_usd: float) -> str:
+    """Attempts to generate a link 3 times. If failed, refunds to wallet automatically."""
+    for attempt in range(3):
+        try:
+            link = await bot.create_chat_invite_link(chat_id=chat_id, member_limit=1)
+            return link.invite_link
+        except Exception as e:
+            logging.error(f"Invite generation failed (Attempt {attempt+1}): {e}")
+            await asyncio.sleep(1.5) # Short delay before retry
+    
+    # If all 3 attempts fail, execute refund protocol
+    async with AsyncSessionLocal() as session:
+        user = await get_user(session, user_id)
+        user.balance_inr += amount_inr
+        user.balance_usd += amount_usd
+        await session.commit()
+        
+    await bot.send_message(
+        user_id, 
+        f"⚠️ **Invite Link Error**\n\nYour payment was successful, but we couldn't generate your group invite link right now due to a network issue. \n\n✅ The amount of **₹{amount_inr:.2f}** has been safely credited to your wallet. You can use this balance to purchase the group directly from your wallet without paying again.",
+        parse_mode="Markdown"
+    )
+    return None
+
+# ==========================================
+# 🤖 INTERACTIVE CAPTCHA & REFERRAL SYSTEM
+# ==========================================
+def generate_captcha_kb(correct_ans: int):
+    # Generate 3 random wrong answers
+    options = [correct_ans, correct_ans + random.randint(1,5), correct_ans - random.randint(1,5), correct_ans + random.randint(6,9)]
+    options = list(set(options)) # ensure uniqueness
+    while len(options) < 4:
+        options.append(correct_ans + random.randint(10,20))
+        options = list(set(options))
+    
+    random.shuffle(options)
+    
+    buttons = []
+    for opt in options:
+        # Check answer via callback data
+        callback = "captcha_pass" if opt == correct_ans else "captcha_fail"
+        buttons.append(InlineKeyboardButton(text=str(opt), callback_data=callback))
+    
+    # 2x2 grid
+    return InlineKeyboardMarkup(inline_keyboard=[buttons[:2], buttons[2:]])
+
 @dp.message(CommandStart(), StateFilter('*'))
-async def cmd_start(message: Message, state: FSMContext):
+async def cmd_start(message: Message, state: FSMContext, command: Command):
     await state.clear()
-    num1 = random.randint(1, 9)
-    num2 = random.randint(1, 9)
+    
+    referrer_id = None
+    if command.args and command.args.isdigit():
+        referrer_id = int(command.args)
+        if referrer_id == message.from_user.id:
+            referrer_id = None # No self-referrals
+            
+    num1 = random.randint(5, 15)
+    num2 = random.randint(5, 15)
     correct_ans = num1 + num2
     
-    await state.update_data(captcha_ans=correct_ans)
+    await state.update_data(
+        captcha_ans=correct_ans, 
+        captcha_time=time.time(), 
+        attempts=0,
+        temp_referrer=referrer_id
+    )
     await state.set_state(PaymentState.captcha_verification)
     
-    await message.answer(f"🤖 **Human Verification Required**\nTo maintain compliance, please solve this math problem:\n\n👉 What is `{num1} + {num2}`?", parse_mode="Markdown")
+    await message.answer(
+        f"🤖 **Security Check Required**\n\nTo prevent abuse, please solve this math problem within 60 seconds:\n\n👉 **{num1} + {num2} = ?**", 
+        reply_markup=generate_captcha_kb(correct_ans),
+        parse_mode="Markdown"
+    )
 
-@dp.message(StateFilter(PaymentState.captcha_verification))
-async def process_captcha(message: Message, state: FSMContext):
+@dp.callback_query(StateFilter(PaymentState.captcha_verification), F.data.startswith("captcha_"))
+async def process_captcha(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    expected = data.get("captcha_ans")
+    time_passed = time.time() - data.get("captcha_time", 0)
+    attempts = data.get("attempts", 0) + 1
     
-    try:
-        user_ans = int(message.text.strip())
-        if user_ans == expected:
-            await state.clear()
-            async with AsyncSessionLocal() as session:
-                await get_user(session, message.from_user.id)
-            await message.answer("✅ Verification Successful!", reply_markup=main_menu_kb())
-        else:
-            raise ValueError
-    except ValueError:
+    if time_passed > 60:
+        await callback.message.edit_text("⏳ Time limit exceeded. Please type /start to generate a new CAPTCHA.")
+        await state.clear()
+        return
+
+    if callback.data == "captcha_pass":
+        # Verification Success! Register user & process referral
+        referrer_id = data.get("temp_referrer")
+        await state.clear()
+        
         async with AsyncSessionLocal() as session:
-            log = SecurityLog(user_id=message.from_user.id, username=message.from_user.username, reason="Failed Verification Attempt")
-            session.add(log)
+            # Check if user already exists
+            user_exists = await session.get(User, callback.from_user.id)
+            user = await get_user(session, callback.from_user.id)
+            user.is_active = True # Ensure active
+            
+            # Award Referral only if user is completely NEW
+            if not user_exists and referrer_id:
+                referrer = await get_user(session, referrer_id)
+                # Max 100 limit
+                if referrer.referrals_count < 100:
+                    referrer.referrals_count += 1
+                    referrer.balance_inr += 5.0
+                    referrer.balance_usd += (5.0 / EXCHANGE_RATE)
+                    referrer.referral_earnings += 5.0
+                    user.referrer_id = referrer_id
+                    
+                    try:
+                        await bot.send_message(referrer_id, f"🎉 **New Referral!**\nA user joined using your link. You earned **₹5.0**!")
+                    except Exception:
+                        pass
+                        
             await session.commit()
-        await message.answer("❌ Incorrect answer. Please type `/start` to try again.")
+            
+        await callback.message.edit_text("✅ Verification Successful!")
+        await callback.message.answer("Welcome to the Premium Store! 🛍️\nPlease select an option below:", reply_markup=main_menu_kb())
+        
+    else:
+        # Failed attempt
+        if attempts >= 3:
+            BANNED_USERS.add(callback.from_user.id) # Shadowban temporary
+            await callback.message.edit_text("❌ Too many failed attempts. You have been restricted for security reasons.")
+            async with AsyncSessionLocal() as session:
+                log = SecurityLog(user_id=callback.from_user.id, username=callback.from_user.username, reason="Failed CAPTCHA 3 times")
+                session.add(log)
+                await session.commit()
+            await state.clear()
+        else:
+            await state.update_data(attempts=attempts)
+            await callback.answer("❌ Incorrect answer. Try again.", show_alert=True)
 
 # ==========================================
 # 🛑 GLOBAL CANCEL & MENU HANDLERS
 # ==========================================
-MENU_COMMANDS = ["🛒 Buy Groups", "👤 Profile & Wallet", "📂 Demo Channels", "📜 Purchase History", "📢 Main Channel", "📞 Contact Admin", "🔙 Back to Main Menu"]
+MENU_COMMANDS = ["🛒 Buy Groups", "👤 Profile & Wallet", "📂 Demo Channels", "📜 Purchase History", "📢 Main Channel", "📞 Contact Admin", "🤝 Referral Program", "🔙 Back to Main Menu"]
 
 @dp.message(F.text.in_(MENU_COMMANDS), StateFilter('*'))
 async def handle_menu_buttons(message: Message, state: FSMContext):
     await state.clear()
     async with AsyncSessionLocal() as session:
-        await get_user(session, message.from_user.id)
+        user = await get_user(session, message.from_user.id)
 
-    if message.text in ["🔙 Back to Main Menu", "/start"]:
+    if message.text in ["🔙 Back to Main Menu"]:
         await message.answer("Main Menu:", reply_markup=main_menu_kb())
     elif message.text == "🛒 Buy Groups":
         await message.answer("Select a group to buy:", reply_markup=buy_groups_kb())
@@ -234,22 +329,35 @@ async def handle_menu_buttons(message: Message, state: FSMContext):
     elif message.text == "📢 Main Channel":
         await message.answer(f"👉 https://t.me/{config.MAIN_CHANNEL.replace('@', '')}")
     elif message.text == "👤 Profile & Wallet":
-        async with AsyncSessionLocal() as session:
-            user = await get_user(session, message.from_user.id)
-            text = (f"👤 **Your Profile**\nID: `{user.id}`\n\n"
-                    f"💰 **Wallet Balance:**\n₹{user.balance_inr:.2f}  |  ${user.balance_usd:.2f}")
-            kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Deposit Money", callback_data="deposit_money")]])
-            await message.answer(text, reply_markup=kb, parse_mode="Markdown")
+        text = (f"👤 **Your Profile**\nID: `{user.id}`\n\n"
+                f"💰 **Wallet Balance:**\n₹{user.balance_inr:.2f}  |  ${user.balance_usd:.2f}")
+        kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Deposit Money", callback_data="deposit_money")]])
+        await message.answer(text, reply_markup=kb, parse_mode="Markdown")
     elif message.text == "📜 Purchase History":
-        async with AsyncSessionLocal() as session:
-            records = (await session.execute(select(PurchaseHistory).where(PurchaseHistory.user_id == message.from_user.id).order_by(PurchaseHistory.timestamp.desc()).limit(10))).scalars().all()
-            if not records:
-                return await message.answer("No purchase history found.")
-            text = "📜 **Your Last Purchases:**\n\n"
-            for r in records:
-                sym = "₹" if r.currency == "INR" else "$"
-                text += f"▪️ **{r.product_name}** - {sym}{r.price}\n   Method: {r.method} | Status: {r.status}\n   Date: {r.timestamp.strftime('%Y-%m-%d %H:%M')}\n\n"
-            await message.answer(text, parse_mode="Markdown")
+        records = (await session.execute(select(PurchaseHistory).where(PurchaseHistory.user_id == message.from_user.id).order_by(PurchaseHistory.timestamp.desc()).limit(10))).scalars().all()
+        if not records:
+            return await message.answer("No purchase history found.")
+        text = "📜 **Your Last Purchases:**\n\n"
+        for r in records:
+            sym = "₹" if r.currency == "INR" else "$"
+            text += f"▪️ **{r.product_name}** - {sym}{r.price}\n   Method: {r.method} | Status: {r.status}\n   Date: {r.timestamp.strftime('%Y-%m-%d %H:%M')}\n\n"
+        await message.answer(text, parse_mode="Markdown")
+    elif message.text == "🤝 Referral Program":
+        bot_info = await bot.get_me()
+        ref_link = f"https://t.me/{bot_info.username}?start={message.from_user.id}"
+        remaining = max(0, 100 - user.referrals_count)
+        
+        text = (
+            f"🤝 **Referral Program**\n\n"
+            f"Invite friends and earn **₹5.0** for every active user who joins and verifies via your link!\n\n"
+            f"🔗 **Your Referral Link:**\n`{ref_link}`\n\n"
+            f"📊 **Your Stats:**\n"
+            f"• Total Referrals: {user.referrals_count}\n"
+            f"• Total Earnings: ₹{user.referral_earnings:.2f}\n"
+            f"• Remaining Limit: {remaining} users\n\n"
+            f"_(Self-referrals or fake accounts will not be rewarded.)_"
+        )
+        await message.answer(text, parse_mode="Markdown")
 
 # ==========================================
 # 📢 SECURITY DASHBOARD & ADMIN COMMANDS
@@ -304,33 +412,41 @@ async def process_broadcast(message: Message, state: FSMContext):
     await state.clear()
     
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User.id))
+        result = await session.execute(select(User).where(User.is_active == True))
         users = result.scalars().all()
         
     if not users:
-        return await message.answer("No users found in the database.")
+        return await message.answer("No active users found in the database.")
         
     sent, failed, blocked, deleted = 0, 0, 0, 0
     await message.answer(f"Starting broadcast to {len(users)} users. This may take a while...")
     
-    for uid in users:
+    dead_users = []
+    
+    for user in users:
         try:
-            await bot.copy_message(chat_id=uid, from_chat_id=message.chat.id, message_id=message.message_id)
+            await bot.copy_message(chat_id=user.id, from_chat_id=message.chat.id, message_id=message.message_id)
             sent += 1
-        except TelegramForbiddenError:
-            blocked += 1
-        except TelegramBadRequest:
-            deleted += 1
+        except (TelegramForbiddenError, TelegramBadRequest) as e:
+            dead_users.append(user.id)
+            if isinstance(e, TelegramForbiddenError):
+                blocked += 1
+            else:
+                deleted += 1
         except Exception:
             failed += 1
         await asyncio.sleep(0.05)
             
+    if dead_users:
+        async with AsyncSessionLocal() as session:
+            await session.execute(update(User).where(User.id.in_(dead_users)).values(is_active=False))
+            await session.commit()
+            
     stats = (
         f"✅ **Broadcast Complete!**\n\n"
-        f"👥 Total Users: {len(users)}\n"
+        f"👥 Total Users Attempted: {len(users)}\n"
         f"✅ Successful: {sent}\n"
-        f"🚫 Blocked Bot: {blocked}\n"
-        f"👻 Deleted Accs: {deleted}\n"
+        f"🧹 Cleaned Inactive/Blocked: {len(dead_users)}\n"
         f"❌ Failed Other: {failed}"
     )
     await message.answer(stats, parse_mode="Markdown")
@@ -373,18 +489,34 @@ async def manual_balance_update(message: Message, command: Command):
     except Exception:
         await message.answer("⚠️ **Incorrect Format!**\nUsage: `/addbalance <user_id> <amount_in_INR>`\nExample: `/addbalance 123456789 500`", parse_mode="Markdown")
 
-# ==========================================
-# 📂 DEMO CHANNELS
-# ==========================================
-@dp.message(F.text.endswith("Demo"), StateFilter('*'))
-async def show_demo_content(message: Message, state: FSMContext):
-    await state.clear()
-    group_name = message.text.replace("📁 ", "").replace(" Demo", "")
-    for g_id, data in GROUPS.items():
-        if data["name"] == group_name:
-            kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📺 View Demo", url=data['demo'])]])
-            await message.answer(f"**{group_name} Demo:**\nClick the button below to view the demo samples.", reply_markup=kb, parse_mode="Markdown")
-            return
+@dp.message(Command("stars"))
+async def cmd_stars_dashboard(message: Message):
+    if message.from_user.id != config.OWNER_ID:
+        return
+    await message.answer(
+        "⭐ **Telegram Stars Dashboard**\n\n"
+        "Note: Real-time total balance is managed via BotFather.\n"
+        "To view your exact earnings and withdraw, please visit:\n"
+        "👉 https://fragment.com/my/bots\n\n"
+        "Check your @BotFather balance for the most accurate stats.", 
+        parse_mode="Markdown"
+    )
+
+@dp.message(Command("withdrawstars"))
+async def cmd_withdraw_stars(message: Message):
+    if message.from_user.id != config.OWNER_ID:
+        return
+    await message.answer(
+        "💸 **Withdrawal Instructions**\n\n"
+        "Telegram does not allow bots to withdraw Stars directly via API.\n\n"
+        "**To withdraw your Stars:**\n"
+        "1. Open @BotFather on Telegram.\n"
+        "2. Select your bot and go to 'Monetization' > 'Telegram Stars'.\n"
+        "3. Alternatively, go to [Fragment.com](https://fragment.com/my/bots).\n"
+        "4. Connect your wallet and convert your Stars to TON.\n\n"
+        "This is the only official method to cash out your earnings.", 
+        parse_mode="Markdown", disable_web_page_preview=True
+    )
 
 # ==========================================
 # 🛒 BUY GROUPS (Instant vs Wallet)
@@ -419,12 +551,10 @@ async def wallet_buy_selected(callback: CallbackQuery):
             session.add(history)
             await session.commit()
             
-            try:
-                link = await bot.create_chat_invite_link(chat_id=group['chat_id'], member_limit=1)
-                await callback.message.answer(f"✅ **Purchase Successful using Wallet!**\n\n👉 Join here: {link.invite_link}", parse_mode="Markdown")
+            invite_link = await safe_invite_generator(group['chat_id'], user.id, group['price'], group['usd_price'])
+            if invite_link:
+                await callback.message.answer(f"✅ **Purchase Successful using Wallet!**\n\n👉 Join here: {invite_link}", parse_mode="Markdown")
                 await bot.send_message(config.OWNER_ID, f"🛍️ **Wallet Sale!** User `{user.id}` bought {group['name']}.")
-            except Exception:
-                await callback.message.answer("Payment successful, but error generating link. Admin notified.")
         else:
             await callback.answer("❌ Insufficient Wallet Balance. Please deposit money first.", show_alert=True)
 
@@ -645,6 +775,7 @@ async def handle_screenshot(message: Message, state: FSMContext):
     await message.answer("✅ **Payment proof sent successfully.**\nYour payment has been forwarded to the Admin for verification.\nPlease wait for approval.", reply_markup=main_menu_kb(), parse_mode="Markdown")
     await state.clear()
 
+
 # ==========================================
 # 🔧 ADMIN ACTIONS (Approval / Rejection)
 # ==========================================
@@ -674,11 +805,10 @@ async def approve_payment(callback: CallbackQuery):
             history = PurchaseHistory(user_id=user.id, product_name=group['name'], price=group['price'], currency="INR", method=method, status="Approved")
             session.add(history)
             await session.commit()
-            try:
-                link = await bot.create_chat_invite_link(chat_id=group['chat_id'], member_limit=1)
-                await bot.send_message(user_id, f"✅ **Payment verified successfully.**\nHere is your invite link:\n👉 {link.invite_link}", parse_mode="Markdown")
-            except Exception:
-                await bot.send_message(user_id, "Payment verified, but error generating link. Admin notified.")
+            
+            invite_link = await safe_invite_generator(group['chat_id'], user.id, group['price'], group['usd_price'])
+            if invite_link:
+                await bot.send_message(user_id, f"✅ **Payment verified successfully.**\nHere is your invite link:\n👉 {invite_link}", parse_mode="Markdown")
                 
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.reply("✅ Approved.")
@@ -728,13 +858,12 @@ async def successful_payment_handler(message: Message):
                 history = PurchaseHistory(user_id=user.id, product_name=group['name'], price=group['price'], currency="INR", method="Stars", status="Approved")
                 session.add(history)
                 await session.commit()
-                try:
-                    link = await bot.create_chat_invite_link(chat_id=group['chat_id'], member_limit=1)
-                    await message.answer(f"⭐️ **Stars Payment Successful!**\nJoin here:\n👉 {link.invite_link}", parse_mode="Markdown")
-                except Exception:
-                    pass
+                
+                invite_link = await safe_invite_generator(group['chat_id'], user.id, group['price'], group['usd_price'])
+                if invite_link:
+                    await message.answer(f"⭐️ **Stars Payment Successful!**\nJoin here:\n👉 {invite_link}", parse_mode="Markdown")
 
-    # ==========================================
+# ==========================================
 # 🚀 INITIALIZATION
 # ==========================================
 async def main():

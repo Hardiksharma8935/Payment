@@ -254,19 +254,51 @@ async def cmd_start(message: Message, state: FSMContext, command: Command):
         reply_markup=generate_captcha_kb(correct_ans),
         parse_mode="Markdown"
     )
-
-@dp.callback_query(StateFilter(PaymentState.captcha_verification), F.data.startswith("captcha_"))
+# Purane process_captcha ko hata kar ye replace karein:
+@dp.callback_query(StateFilter(PaymentState.captcha_verification), F.data.in_(["captcha_pass", "captcha_fail"]))
 async def process_captcha(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    time_passed = time.time() - data.get("captcha_time", 0)
-    attempts = data.get("attempts", 0) + 1
-    
-    if time_passed > 60:
-        await callback.message.edit_text("⏳ Time limit exceeded. Please type /start to generate a new CAPTCHA.")
+    # Check time limit (60 seconds)
+    if time.time() - data.get("captcha_time", 0) > 60:
+        await callback.message.edit_text("⏳ Time limit exceeded. Please type /start again.")
         await state.clear()
         return
 
+    attempts = data.get("attempts", 0) + 1
+    
     if callback.data == "captcha_pass":
+        # Success Logic
+        referrer_id = data.get("temp_referrer")
+        async with AsyncSessionLocal() as session:
+            user_exists = await session.get(User, callback.from_user.id)
+            user = await get_user(session, callback.from_user.id)
+            user.is_active = True
+            
+            if not user_exists and referrer_id:
+                referrer = await get_user(session, referrer_id)
+                if referrer.referrals_count < 100:
+                    referrer.referrals_count += 1
+                    referrer.balance_inr += 5.0
+                    referrer.balance_usd += (5.0 / EXCHANGE_RATE)
+                    referrer.referral_earnings += 5.0
+                    user.referrer_id = referrer_id
+            await session.commit()
+            
+        await callback.message.edit_text("✅ Verification Successful!")
+        await callback.message.answer("Welcome to the Premium Store! 🛍️", reply_markup=main_menu_kb())
+        await state.clear()
+        
+    else:
+        # Failure Logic
+        if attempts >= 3:
+            BANNED_USERS.add(callback.from_user.id)
+            await callback.message.edit_text("❌ Too many failed attempts. You are restricted.")
+            await state.clear()
+        else:
+            await state.update_data(attempts=attempts)
+            await callback.answer("❌ Incorrect answer. Try again.", show_alert=True)
+            
+
         # Verification Success! Register user & process referral
         referrer_id = data.get("temp_referrer")
         await state.clear()

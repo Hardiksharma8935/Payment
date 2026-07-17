@@ -27,6 +27,16 @@ class PurchaseHistory(Base):
     status: Mapped[str] = mapped_column(String, default="Pending")
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+# database.py ke andar baaki models ke sath ise add karein:
+class SecurityLog(Base):
+    __tablename__ = 'security_logs'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger)
+    username: Mapped[str] = mapped_column(String, nullable=True)
+    reason: Mapped[str] = mapped_column(String)  # e.g., "Flood Attempt", "Failed CAPTCHA"
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

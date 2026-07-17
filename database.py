@@ -42,9 +42,19 @@ class SecurityLog(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
+    retries = 5
+    while retries > 0:
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logging.info("Database connected successfully!")
+            return
+        except Exception as e:
+            retries -= 1
+            logging.error(f"DB Connection failed, retrying in 5 seconds... ({retries} left). Error: {e}")
+            await asyncio.sleep(5)
+    raise Exception("Could not connect to database after 5 retries.")
+    
 async def get_user(session: AsyncSession, user_id: int) -> User:
     user = await session.get(User, user_id)
     if not user:

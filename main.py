@@ -298,52 +298,6 @@ async def process_captcha(callback: CallbackQuery, state: FSMContext):
             await state.update_data(attempts=attempts)
             await callback.answer("❌ Incorrect answer. Try again.", show_alert=True)
             
-
-        # Verification Success! Register user & process referral
-        referrer_id = data.get("temp_referrer")
-        await state.clear()
-        
-        async with AsyncSessionLocal() as session:
-            # Check if user already exists
-            user_exists = await session.get(User, callback.from_user.id)
-            user = await get_user(session, callback.from_user.id)
-            user.is_active = True # Ensure active
-            
-            # Award Referral only if user is completely NEW
-            if not user_exists and referrer_id:
-                referrer = await get_user(session, referrer_id)
-                # Max 100 limit
-                if referrer.referrals_count < 100:
-                    referrer.referrals_count += 1
-                    referrer.balance_inr += 5.0
-                    referrer.balance_usd += (5.0 / EXCHANGE_RATE)
-                    referrer.referral_earnings += 5.0
-                    user.referrer_id = referrer_id
-                    
-                    try:
-                        await bot.send_message(referrer_id, f"🎉 **New Referral!**\nA user joined using your link. You earned **₹5.0**!")
-                    except Exception:
-                        pass
-                        
-            await session.commit()
-            
-        await callback.message.edit_text("✅ Verification Successful!")
-        await callback.message.answer("Welcome to the Premium Store! 🛍️\nPlease select an option below:", reply_markup=main_menu_kb())
-        
-    else:
-        # Failed attempt
-        if attempts >= 3:
-            BANNED_USERS.add(callback.from_user.id) # Shadowban temporary
-            await callback.message.edit_text("❌ Too many failed attempts. You have been restricted for security reasons.")
-            async with AsyncSessionLocal() as session:
-                log = SecurityLog(user_id=callback.from_user.id, username=callback.from_user.username, reason="Failed CAPTCHA 3 times")
-                session.add(log)
-                await session.commit()
-            await state.clear()
-        else:
-            await state.update_data(attempts=attempts)
-            await callback.answer("❌ Incorrect answer. Try again.", show_alert=True)
-
 # ==========================================
 # 🛑 GLOBAL CANCEL & MENU HANDLERS
 # ==========================================

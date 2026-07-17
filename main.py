@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import random
 import urllib.parse
-from aiogram import Bot, Dispatcher, F
+from datetime import datetime
+from aiogram import Bot, Dispatcher, F, BaseMiddleware
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, KeyboardButton, 
     CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton,
@@ -14,15 +16,14 @@ from sqlalchemy import select
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 from config import config
-from database import init_db, AsyncSessionLocal, User, PurchaseHistory, get_user
+from database import init_db, AsyncSessionLocal, User, PurchaseHistory, get_user, SecurityLog
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=config.BOT_TOKEN)
 dp = Dispatcher()
 
-# ==========================================
-# ⚙️ GROUPS & PAYMENT SETTINGS
-# ==========================================
+EXCHANGE_RATE = 85.0
+
 GROUPS = {
     "g1": {"name": "Stripchat", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004445000742", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADyh4AAmjCeUaIxOc4OANLJxYE"},
     "g2": {"name": "Indian Students", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004458938934", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADiR4AAmjCeUastMuPKJmT_hYE"},
@@ -40,14 +41,54 @@ GROUPS = {
     "g14": {"name": "Arbic Stuffs", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004409206399", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADrR4AAmjCeUZrD1n7ZSUqFxYE"},
     "g15": {"name": "mallu", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004320995574", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADUAwAAmjCgUbyd4xysXvrtxYE"},
     "g16": {"name": "All In One ", "price": 499, "usd_price": 10, "stars": 833, "chat_id": "-1003599861740", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADmA0AAmjCgUYg1UY_ofR7vxYE"},
-    "g17": {"name": " mom son ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1003688683917", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADfRQAAghnMUYQOCV4bNnbxBYE"},
-    "g18": {"name": " pakistani Cxp", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1003928326633", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD8QkAAp4PiEZ7T8vtPnvP7BYE"},
-    "g19": {"name": " tamil cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1004462050531", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADBREAAjMruEYCe5UUbkSDEBYE"},
-    "g20": {"name": " foreign cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1004458448520", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADAxEAAjMruEaQYyTxdrrTyBYE"},
-    "g21": {"name": " Gay cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1004435458777", "demo":"https://t.me/DemoNovazenithXbot?start=BQADAQADvBAAAjMruEZ8WkqS0PrzpRYE"},
-    "g22": {"name": " Animal with Girl ", "price": 99, "usd_price": 3, "stars": 133, "chat_id": "-1004298649042", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADzhAAAjMruEYeRadHuMFeHhYE"}
+    "g17": {"name": " mom son ", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1003688683917", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQADfRQAAghnMUYQOCV4bNnbxBYE"},
+    "g18": {"name": " pakistani Cxp", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1003928326633", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD8QkAAp4PiEZ7T8vtPnvP7BYE"},
+    "g19": {"name": " tamil cxp ", "price": 199, "usd_price": 3, "stars": 133, "chat_id": "-1004292111897", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD_wkAAp4PiEaDKqDxyG7DNxYE"},
+    "g20": {"name": " foreign cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1004458448520", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD9QgAAhoLqUYNLwST4Tz1jxYE"}
 }
-EXCHANGE_RATE = 86.0
+
+# Configurable Crypto Addresses
+USDT_ADDRESS = config.USDT_ADDRESS
+BTC_ADDRESS = config.BTC_ADDRESS
+ETH_ADDRESS = config.ETH_ADDRESS
+SOL_ADDRESS = config.SOL_ADDRESS
+
+# Security Config
+THROTTLING_CACHE = {}  # Format: {user_id: last_timestamp}
+BANNED_USERS = set()   # In-memory Shadow Ban List
+
+# ==========================================
+# 🛑 MIDDLEWARES (Rate Limiting & Shadow Ban)
+# ==========================================
+class SecurityMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        user = data.get("event_from_user")
+        if not user:
+            return await handler(event, data)
+            
+        # 1. Shadow Ban Filter
+        if user.id in BANNED_USERS:
+            return  # Completely drop the execution silently
+
+        # 2. Rate Limiting (Anti-Flood)
+        now = datetime.utcnow().timestamp()
+        last_time = THROTTLING_CACHE.get(user.id, 0)
+        
+        if now - last_time < 1.0:  # 1 message per second constraint
+            THROTTLING_CACHE[user.id] = now
+            if isinstance(event, Message):
+                async with AsyncSessionLocal() as session:
+                    log = SecurityLog(user_id=user.id, username=user.username, reason="Flood/Throttling Limit Triggered")
+                    session.add(log)
+                    await session.commit()
+                return await event.answer("⚠️ System Warning: Please do not spam inputs.")
+            return
+
+        THROTTLING_CACHE[user.id] = now
+        return await handler(event, data)
+
+dp.message.middleware(SecurityMiddleware())
+dp.callback_query.middleware(SecurityMiddleware())
 
 # ==========================================
 # 🗂 STATES
@@ -58,6 +99,7 @@ class PaymentState(StatesGroup):
     waiting_for_screenshot = State()
     waiting_for_amazon_card = State()
     broadcast_msg = State()
+    captcha_verification = State()
 
 # ==========================================
 # ⌨️ KEYBOARDS
@@ -129,6 +171,42 @@ def admin_approval_kb(user_id: int, intent: str, param: str, currency: str, meth
     ])
 
 # ==========================================
+# 🛑 CAPTCHA SYSTEM (Anti-Bot Verification)
+# ==========================================
+@dp.message(CommandStart(), StateFilter('*'))
+async def cmd_start(message: Message, state: FSMContext):
+    await state.clear()
+    num1 = random.randint(1, 9)
+    num2 = random.randint(1, 9)
+    correct_ans = num1 + num2
+    
+    await state.update_data(captcha_ans=correct_ans)
+    await state.set_state(PaymentState.captcha_verification)
+    
+    await message.answer(f"🤖 **Human Verification Required**\nTo maintain compliance, please solve this math problem:\n\n👉 What is `{num1} + {num2}`?", parse_mode="Markdown")
+
+@dp.message(StateFilter(PaymentState.captcha_verification))
+async def process_captcha(message: Message, state: FSMContext):
+    data = await state.get_data()
+    expected = data.get("captcha_ans")
+    
+    try:
+        user_ans = int(message.text.strip())
+        if user_ans == expected:
+            await state.clear()
+            async with AsyncSessionLocal() as session:
+                await get_user(session, message.from_user.id)
+            await message.answer("✅ Verification Successful!", reply_markup=main_menu_kb())
+        else:
+            raise ValueError
+    except ValueError:
+        async with AsyncSessionLocal() as session:
+            log = SecurityLog(user_id=message.from_user.id, username=message.from_user.username, reason="Failed Verification Attempt")
+            session.add(log)
+            await session.commit()
+        await message.answer("❌ Incorrect answer. Please type `/start` to try again.")
+
+# ==========================================
 # 🛑 GLOBAL CANCEL & MENU HANDLERS
 # ==========================================
 MENU_COMMANDS = ["🛒 Buy Groups", "👤 Profile & Wallet", "📂 Demo Channels", "📜 Purchase History", "📢 Main Channel", "📞 Contact Admin", "🔙 Back to Main Menu"]
@@ -167,16 +245,48 @@ async def handle_menu_buttons(message: Message, state: FSMContext):
                 text += f"▪️ **{r.product_name}** - {sym}{r.price}\n   Method: {r.method} | Status: {r.status}\n   Date: {r.timestamp.strftime('%Y-%m-%d %H:%M')}\n\n"
             await message.answer(text, parse_mode="Markdown")
 
-@dp.message(CommandStart(), StateFilter('*'))
-async def cmd_start(message: Message, state: FSMContext):
-    await state.clear()
+# ==========================================
+# 📢 SECURITY DASHBOARD & ADMIN COMMANDS
+# ==========================================
+@dp.message(Command("security"))
+async def cmd_security_dashboard(message: Message):
+    if message.from_user.id != config.OWNER_ID:
+        return
     async with AsyncSessionLocal() as session:
-        await get_user(session, message.from_user.id)
-    await message.answer("Welcome to the Premium Store! 🛍️\nPlease select an option below:", reply_markup=main_menu_kb())
+        result = await session.execute(select(SecurityLog).order_by(SecurityLog.timestamp.desc()).limit(5))
+        logs = result.scalars().all()
+        
+    text = "🛡️ **Security & Anti-Abuse Controls**\n\n**Recent Suspicious Logs:**\n"
+    if not logs:
+        text += "_No recent security triggers._\n"
+    for l in logs:
+        text += f"• `{l.user_id}` (@{l.username}) - {l.reason}\n"
+        
+    text += "\n**Quick Tools:**\n`/shadowban <user_id>`\n`/shadowunban <user_id>`"
+    await message.answer(text, parse_mode="Markdown")
 
-# ==========================================
-# 📢 BROADCAST & ADMIN COMMANDS
-# ==========================================
+@dp.message(Command("shadowban"))
+async def cmd_shadowban(message: Message, command: Command):
+    if message.from_user.id != config.OWNER_ID:
+        return
+    try:
+        target_id = int(command.args.strip())
+        BANNED_USERS.add(target_id)
+        await message.answer(f"🔒 User `{target_id}` added to shadowban list.", parse_mode="Markdown")
+    except Exception:
+        await message.answer("Usage: `/shadowban <user_id>`")
+
+@dp.message(Command("shadowunban"))
+async def cmd_shadowunban(message: Message, command: Command):
+    if message.from_user.id != config.OWNER_ID:
+        return
+    try:
+        target_id = int(command.args.strip())
+        BANNED_USERS.discard(target_id)
+        await message.answer(f"🔓 User `{target_id}` removed from shadowban list.", parse_mode="Markdown")
+    except Exception:
+        await message.answer("Usage: `/shadowunban <user_id>`")
+
 @dp.message(Command("broadcast"))
 async def cmd_broadcast(message: Message, state: FSMContext):
     if message.from_user.id == config.OWNER_ID:
@@ -207,7 +317,7 @@ async def process_broadcast(message: Message, state: FSMContext):
             deleted += 1
         except Exception:
             failed += 1
-        await asyncio.sleep(0.05) # Prevent flood wait limits
+        await asyncio.sleep(0.05)
             
     stats = (
         f"✅ **Broadcast Complete!**\n\n"
@@ -385,10 +495,10 @@ async def process_crypto_payment(callback: CallbackQuery):
     sym = "₹" if currency == "INR" else "$"
     
     addresses = {
-        "USDT": config.USDT_ADDRESS,
-        "BTC": config.BTC_ADDRESS,
-        "ETH": config.ETH_ADDRESS,
-        "SOL": config.SOL_ADDRESS
+        "USDT": USDT_ADDRESS,
+        "BTC": BTC_ADDRESS,
+        "ETH": ETH_ADDRESS,
+        "SOL": SOL_ADDRESS
     }
     wallet_address = addresses.get(coin, "Not Configured")
     
@@ -424,10 +534,8 @@ async def process_amazon(callback: CallbackQuery, state: FSMContext):
         if currency == "INR":
             amt_inr = float(param)
         else:
-            # Convert USD deposit input accurately into INR for Amazon
             amt_inr = float(param) * EXCHANGE_RATE
 
-    # Amazon ALWAYS uses INR
     amt = amt_inr
     sym = "₹"
     
@@ -447,7 +555,7 @@ async def process_stars(callback: CallbackQuery):
         amt_usd = float(param) if currency == "USD" else (float(param) / EXCHANGE_RATE)
         title = "Wallet Deposit"
         
-    stars_cost = int(amt_usd * 50) # 1 USD = 50 Stars approx
+    stars_cost = int(amt_usd * 50)
     payload = f"stars_{intent}_{param}_{currency}_{callback.from_user.id}_{stars_cost}"
     
     try:
@@ -465,8 +573,6 @@ async def process_stars(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("method_upi_"))
 async def process_upi(callback: CallbackQuery):
     _, _, intent, param, currency = callback.data.split("_")
-    
-    # Format owner username safely to ensure the deep link works
     owner_username = config.OWNER_USERNAME.replace("@", "")
     deep_link = f"https://t.me/{owner_username}?text=UPI"
     
@@ -481,20 +587,16 @@ async def process_upi(callback: CallbackQuery):
     )
     await callback.answer()
 
-
 # --- AMAZON CARD HANDLER ---
 @dp.message(StateFilter(PaymentState.waiting_for_amazon_card))
 async def receive_amazon_card(message: Message, state: FSMContext):
     data = await state.get_data()
-    
-    # Amazon is strictly INR
     sym = "₹"
     amt = data.get('amount', 0.0)
     
     caption = f"🚨 **Amazon Card Verification**\nUser: `{message.from_user.id}`\nAmount: **{sym}{amt:.2f}**\nIntent: {data['intent']}"
     await bot.send_message(config.OWNER_ID, caption, parse_mode="Markdown")
     await bot.forward_message(config.OWNER_ID, message.chat.id, message.message_id)
-    
     await bot.send_message(config.OWNER_ID, "Approve or Reject?", reply_markup=admin_approval_kb(message.from_user.id, data['intent'], data['param'], data['currency'], data['method']))
     
     await message.answer("✅ Gift card received. Your payment has been forwarded to the Admin for verification.\nPlease wait for approval.", reply_markup=main_menu_kb())
@@ -626,7 +728,7 @@ async def successful_payment_handler(message: Message):
                 except Exception:
                     pass
 
-# ==========================================
+    # ==========================================
 # 🚀 INITIALIZATION
 # ==========================================
 async def main():

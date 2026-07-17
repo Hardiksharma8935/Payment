@@ -2,7 +2,6 @@ import asyncio
 import logging
 import random
 import time
-import urllib.parse
 from datetime import datetime
 from aiogram import Bot, Dispatcher, F, BaseMiddleware
 from aiogram.types import (
@@ -51,6 +50,12 @@ GROUPS = {
     "g20": {"name": " foreign cxp ", "price": 199, "usd_price": 5, "stars": 233, "chat_id": "-1004458448520", "demo": "https://t.me/DemoNovazenithXbot?start=BQADAQAD9QgAAhoLqUYNLwST4Tz1jxYE"}
 }
 
+# Configuration Addresses
+USDT_ADDRESS = config.USDT_ADDRESS
+BTC_ADDRESS = config.BTC_ADDRESS
+ETH_ADDRESS = config.ETH_ADDRESS
+SOL_ADDRESS = config.SOL_ADDRESS
+
 # ==========================================
 # 🛑 ANTI-ABUSE MIDDLEWARE (Rate Limit & Shadow Ban)
 # ==========================================
@@ -64,25 +69,23 @@ class SecurityMiddleware(BaseMiddleware):
             return await handler(event, data)
             
         if user.id in BANNED_USERS:
-            return # Silent drop for shadowbanned users
+            return 
 
         now = time.time()
         timestamps = THROTTLING_CACHE.get(user.id, [])
-        # Keep timestamps from the last 3 seconds
         timestamps = [t for t in timestamps if now - t < 3.0]
         timestamps.append(now)
         THROTTLING_CACHE[user.id] = timestamps
         
-        # If more than 5 messages in 3 seconds -> Suspected Bot/Spammer
         if len(timestamps) > 5:
-            if len(timestamps) == 6: # Log once per burst
+            if len(timestamps) == 6: 
                 async with AsyncSessionLocal() as session:
                     log = SecurityLog(user_id=user.id, username=user.username, reason="Burst Rate Limit (Spam)")
                     session.add(log)
                     await session.commit()
                 if isinstance(event, Message):
                     await event.answer("⚠️ You are sending requests too fast. Please slow down.")
-            return # Drop execution
+            return 
             
         return await handler(event, data)
 
@@ -498,9 +501,8 @@ async def cmd_withdraw_stars(message: Message):
         "4. Connect your wallet and convert your Stars to TON.\n\n"
         "This is the only official method to cash out your earnings.", 
         parse_mode="Markdown", disable_web_page_preview=True
-)
-
- ==========================================
+            )
+    # ==========================================
 # 🛒 BUY GROUPS (Instant vs Wallet)
 # ==========================================
 @dp.message(F.text.startswith("📦"), StateFilter('*'))
@@ -756,7 +758,8 @@ async def handle_screenshot(message: Message, state: FSMContext):
     
     await message.answer("✅ **Payment proof sent successfully.**\nYour payment has been forwarded to the Admin for verification.\nPlease wait for approval.", reply_markup=main_menu_kb(), parse_mode="Markdown")
     await state.clear()
-              # ==========================================
+
+# ==========================================
 # 🔧 ADMIN ACTIONS (Approval / Rejection)
 # ==========================================
 @dp.callback_query(F.data.startswith("appr_"))
@@ -852,4 +855,4 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())         
+    asyncio.run(main())

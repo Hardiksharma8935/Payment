@@ -16,7 +16,7 @@ class User(Base):
     balance_usd: Mapped[float] = mapped_column(Float, default=0.0)
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     
-    # --- New Referral & Anti-Abuse Fields ---
+    # --- Referral & Anti-Abuse Fields ---
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     referrer_id: Mapped[int] = mapped_column(BigInteger, nullable=True)
     referrals_count: Mapped[int] = mapped_column(Integer, default=0)
